@@ -20,14 +20,14 @@ public partial class MainWindow : Window
 
     internal string PinStatus => $"topmost={Topmost}";
 
-    private readonly VisibilityGuard _guard;
+    private readonly ShowDesktopWatcher _watcher;
 
     public MainWindow()
     {
         _settings = SettingsStore.Load();
 
         InitializeComponent();
-        _guard = new VisibilityGuard(this);
+        _watcher = new ShowDesktopWatcher(this, _settings.AlwaysOnTop);
 
         Loaded += OnLoaded;
         Closed += (_, _) => SaveSettings();
@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         Left = area.Right - ActualWidth - 24;
         Top = area.Bottom - ActualHeight - 24;
 
-        _guard.Start();
+        _watcher.Start();
     }
 
     private void LoadDevices()
