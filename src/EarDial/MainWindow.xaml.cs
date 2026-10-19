@@ -15,23 +15,36 @@ public partial class MainWindow : Window
     private bool _loading;
     private bool _pinned;
     private int _pinError;
+    private readonly AppSettings _settings;
 
     internal string PinStatus => $"pinned={_pinned} pinError={_pinError}";
 
     public MainWindow()
     {
+        _settings = SettingsStore.Load();
+
         InitializeComponent();
         Loaded += OnLoaded;
+        Closed += (_, _) => SaveSettings();
         LoadDevices();
+    }
+
+    private void SaveSettings()
+    {
+        _settings.DeviceId = _current?.Id;
+        _settings.Pinned = _pinned;
+
+        SettingsStore.Save(_settings);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         var area = SystemParameters.WorkArea;
+
         Left = area.Right - ActualWidth - 24;
         Top = area.Bottom - ActualHeight - 24;
 
-        ApplyPin(true);
+        ApplyPin(_settings.Pinned);
     }
 
     private void ApplyPin(bool pinned)
@@ -53,7 +66,7 @@ public partial class MainWindow : Window
 
     private void LoadDevices()
     {
-        string? previousId = _current?.Id;
+        string? previousId = _current?.Id ?? _settings.DeviceId;
 
         _devices = EndpointAudio.List();
 

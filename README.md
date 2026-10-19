@@ -17,7 +17,7 @@ UI is written.
 - [ ] Detect devices that accept the write and ignore it
 - [x] Widget window
 - [x] Pin widget to the desktop layer
-- [ ] Remember window position and selected device
+- [ ] Remember selected device
 - [ ] Single-file release build
 
 ## How it works
