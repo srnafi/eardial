@@ -102,6 +102,52 @@ public static class EndpointAudio
         using var enumerator = new MMDeviceEnumerator();
         return enumerator.GetDevice(id);
     }
+
+    // Bluetooth endpoints report a single channel while absolute volume is on,
+    // so the transport decides whether the fix in the drawer applies to them.
+    private static readonly PropertyKey EnumeratorNameKey = new(
+        new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"), 24);
+
+    public static bool IsBluetooth(string id)
+    {
+        try
+        {
+            using var device = Open(id);
+
+            // PKEY_Device_EnumeratorName reports the bus, not the product name,
+            // so a rename in Sound settings cannot break the check.
+            if (device.Properties.TryGetValue<string>(EnumeratorNameKey, out var transport))
+            {
+                if (!string.IsNullOrEmpty(transport))
+                {
+                    return transport.Contains("BTHENUM", StringComparison.OrdinalIgnoreCase)
+                        || transport.Contains("BTHHFENUM", StringComparison.OrdinalIgnoreCase)
+                        || transport.Contains("BTHLE", StringComparison.OrdinalIgnoreCase);
+                }
+            }
+        }
+        catch
+        {
+            // Property store unavailable; fall through to the name check.
+        }
+
+        try
+        {
+            using var device = Open(id);
+            string name = device.FriendlyName;
+
+            return name.Contains("Bluetooth", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("Hands-Free", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("Headset", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("Buds", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("AirPods", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static void SetChannel(string id, int index, float value)
     {
         using var device = Open(id);

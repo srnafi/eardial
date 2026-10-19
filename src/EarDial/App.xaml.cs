@@ -25,8 +25,42 @@ public partial class App : Application
             return;
         }
 
+        // Elevated child mode: write the Bluetooth absolute-volume switch and
+        // exit. Started by AvrcpFix.Apply with Verb=runas; the parent reads the
+        // registry back rather than trusting this exit code.
+        int avrcp = Array.IndexOf(e.Args, "--set-absolute-volume");
+        if (avrcp >= 0 && avrcp + 1 < e.Args.Length)
+        {
+            bool enable = e.Args[avrcp + 1] == "1";
+            Shutdown(AvrcpFix.Write(enable));
+            return;
+        }
+
         var window = new MainWindow();
         window.Show();
+
+        // Diagnostic: open the settings drawer before capturing.
+        if (e.Args.Contains("--drawer")) window.OpenDrawer();
+        if (e.Args.Contains("--chip")) window.ShowChipForTest();
+
+        int select = Array.IndexOf(e.Args, "--select");
+        if (select >= 0 && select + 1 < e.Args.Length && int.TryParse(e.Args[select + 1], out int pick))
+            window.SelectDevice(pick);
+
+        int uiTest = Array.IndexOf(e.Args, "--selftest-ui");
+        if (uiTest >= 0 && uiTest + 1 < e.Args.Length)
+        {
+            string uiPath = e.Args[uiTest + 1];
+            var uiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
+            uiTimer.Tick += (_, _) =>
+            {
+                uiTimer.Stop();
+                File.WriteAllText(uiPath, window.RunUiSelfTest());
+                Shutdown();
+            };
+            uiTimer.Start();
+            return;
+        }
 
         int shot = Array.IndexOf(e.Args, "--shot");
         if (shot >= 0 && shot + 1 < e.Args.Length)
@@ -99,6 +133,13 @@ public partial class App : Application
         builder.AppendLine(
             $"window {window.Left:F0},{window.Top:F0} {window.ActualWidth:F0}x{window.ActualHeight:F0} "
             + $"topmost={window.Topmost} visible={window.IsVisible}");
+
+        if (window is MainWindow main)
+        {
+            builder.AppendLine(main.DescribeState());
+            builder.AppendLine(main.DescribeDevices());
+            builder.AppendLine(main.DescribeGeometry());
+        }
 
         Walk(window, builder, 0);
         return builder.ToString();

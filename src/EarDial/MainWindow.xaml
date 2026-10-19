@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="EarDial"
         Icon="Assets/eardial.ico"
-        Width="330"
+        Width="340"
         SizeToContent="Height"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -18,44 +18,282 @@
             Background="{StaticResource CardBackground}"
             BorderBrush="{StaticResource CardBorder}"
             BorderThickness="1"
-            Padding="18,16,18,18"
+            Padding="12,10,12,12"
             MouseLeftButtonDown="Card_MouseLeftButtonDown">
 
+        <!-- The red dot is gone. Quitting is rare enough to live one click deeper. -->
         <Border.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="Refresh devices" Click="Refresh_Click" />
-                <MenuItem x:Name="TopmostMenu" Header="Always on top" IsCheckable="True" IsChecked="True" Click="Topmost_Click" />
-                <Separator />
-                <MenuItem Header="Exit" Click="Exit_Click" />
+            <ContextMenu Background="#22252C"
+                         BorderBrush="#33FFFFFF"
+                         BorderThickness="1"
+                         Padding="4">
+                <MenuItem Header="Quit EarDial" Click="Exit_Click" />
             </ContextMenu>
         </Border.ContextMenu>
 
         <StackPanel>
-            <DockPanel LastChildFill="False">
-                <TextBlock Text="EarDial"
-                           FontSize="13"
+
+            <!-- ===================== header ===================== -->
+            <Grid Height="26">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <ComboBox x:Name="DeviceBox"
+                          Grid.Column="0"
+                          Style="{StaticResource DeviceSelector}"
+                          SelectionChanged="DeviceBox_SelectionChanged" />
+
+                <Button x:Name="PinButton"
+                        Grid.Column="1"
+                        Style="{StaticResource IconButton}"
+                        Margin="1,0,0,0"
+                        Tag="off"
+                        ToolTipService.InitialShowDelay="0"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTip="Always on top"
+                        Click="Pin_Click">
+                    <Viewbox Width="13" Height="13">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M12,16.5 L12,22"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.9"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" />
+                            <Path Data="M9,10.8 L9,6 A3,3 0 0 1 15,6 L15,10.8 L17,13 L17,14 L7,14 L7,13 Z"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.8"
+                                  StrokeLineJoin="Round" />
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+
+                <Button x:Name="GearButton"
+                        Grid.Column="2"
+                        Style="{StaticResource IconButton}"
+                        Tag="off"
+                        ToolTipService.InitialShowDelay="0"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTip="Settings"
+                        Click="Gear_Click">
+                    <!-- Sliders, not a gear: a gear turns to mush at 13 px. -->
+                    <Viewbox Width="13" Height="13">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M3,7 L21,7 M3,12 L21,12 M3,17 L21,17"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.8"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" />
+                            <Ellipse Canvas.Left="6" Canvas.Top="4.6" Width="4.8" Height="4.8"
+                                     Fill="#1B1D23"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                     StrokeThickness="1.8" />
+                            <Ellipse Canvas.Left="13.2" Canvas.Top="9.6" Width="4.8" Height="4.8"
+                                     Fill="#1B1D23"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                     StrokeThickness="1.8" />
+                            <Ellipse Canvas.Left="8.6" Canvas.Top="14.6" Width="4.8" Height="4.8"
+                                     Fill="#1B1D23"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                     StrokeThickness="1.8" />
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+            </Grid>
+
+            <!-- ===================== symptom chip ===================== -->
+            <Border x:Name="Chip"
+                    Visibility="Collapsed"
+                    Margin="0,7,0,0"
+                    CornerRadius="8"
+                    Background="#FFB02012"
+                    BorderBrush="#FFB02033"
+                    BorderThickness="1"
+                    Padding="8,5,7,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Viewbox Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,6,0">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M12,8.5 L12,13.5 M12,17.4 L12,17.6"
+                                  Stroke="{StaticResource Warn}"
+                                  StrokeThickness="2.1"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" />
+                            <Path x:Name="ChipGlyph"
+                                  Data="M10.3,3.9 L2.5,18 A2,2 0 0 0 4.2,21 L19.8,21 A2,2 0 0 0 21.5,18 L13.7,3.9 A2,2 0 0 0 10.3,3.9 Z"
+                                  Stroke="{StaticResource Warn}"
+                                  StrokeThickness="1.9"
+                                  StrokeLineJoin="Round" />
+                        </Canvas>
+                    </Viewbox>
+
+                    <TextBlock x:Name="ChipText"
+                               Grid.Column="1"
+                               FontSize="10.5"
+                               Foreground="{StaticResource Warn}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+
+                    <Button x:Name="ChipAction"
+                            Grid.Column="2"
+                            Style="{StaticResource ChipAction}"
+                            Content="Fix"
+                            Margin="6,0,0,0"
+                            Visibility="Collapsed"
+                            Click="ChipFix_Click" />
+                </Grid>
+            </Border>
+
+            <!-- ===================== per-ear ===================== -->
+            <StackPanel x:Name="EarHost" Margin="0,7,0,0" />
+
+            <Border Height="1" Background="{StaticResource Hairline}" Margin="0,8,0,7" />
+
+            <!-- ===================== master ===================== -->
+            <Grid Height="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="15" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="36" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="VOL"
+                           FontSize="9"
                            FontWeight="SemiBold"
+                           Foreground="{StaticResource FaintText}"
+                           HorizontalAlignment="Center"
                            VerticalAlignment="Center" />
-                <Button DockPanel.Dock="Right"
-                        Style="{StaticResource CloseButton}"
-                        Content="&#x2715;"
-                        Click="Exit_Click" />
-            </DockPanel>
 
-            <ComboBox x:Name="DeviceBox"
-                      Margin="0,10,0,0"
-                      Height="26"
-                      Style="{StaticResource DeviceSelector}"
-                      SelectionChanged="DeviceBox_SelectionChanged" />
+                <Slider x:Name="MasterSlider"
+                        Grid.Column="1"
+                        Style="{StaticResource MasterSlider}"
+                        Minimum="0"
+                        Maximum="100"
+                        VerticalAlignment="Center"
+                        ValueChanged="Master_ValueChanged" />
 
-            <TextBlock x:Name="HintText"
-                       Margin="0,10,0,0"
-                       FontSize="11"
-                       TextWrapping="Wrap"
-                       Foreground="{StaticResource SecondaryText}"
-                       Visibility="Collapsed" />
+                <TextBlock x:Name="MasterReadout"
+                           Grid.Column="2"
+                           FontSize="10.5"
+                           Foreground="{StaticResource DimText}"
+                           TextAlignment="Right"
+                           VerticalAlignment="Center" />
+            </Grid>
 
-            <StackPanel x:Name="SliderHost" Margin="0,10,0,0" />
+            <!-- ===================== footer ===================== -->
+            <Grid Height="22" Margin="0,7,0,0">
+                <ToggleButton x:Name="LinkToggle"
+                              Style="{StaticResource FooterToggle}"
+                              HorizontalAlignment="Left"
+                              IsChecked="True"
+                              Click="Link_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <Viewbox Width="12" Height="12" Margin="0,0,5,0">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="M10,13 A5,5 0 0 0 17,13 L19,11 A5,5 0 0 0 12,4 L11,5"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                      StrokeThickness="1.9"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                                <Path Data="M14,11 A5,5 0 0 0 7,11 L5,13 A5,5 0 0 0 12,20 L13,19"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                      StrokeThickness="1.9"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                            </Canvas>
+                        </Viewbox>
+
+                        <TextBlock Text="Linked"
+                                   FontSize="11"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                   VerticalAlignment="Center" />
+
+                        <TextBlock x:Name="LinkOffset"
+                                   FontSize="11"
+                                   Foreground="{StaticResource FaintText}"
+                                   Margin="5,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </ToggleButton>
+
+                <Button x:Name="CentreButton"
+                        Style="{StaticResource FooterButton}"
+                        Content="Centre"
+                        HorizontalAlignment="Right"
+                        Click="Centre_Click" />
+            </Grid>
+
+            <!-- ===================== settings drawer ===================== -->
+            <StackPanel x:Name="Drawer" Visibility="Collapsed" Margin="0,9,0,0">
+                <Border Height="1" Background="{StaticResource Hairline}" Margin="0,0,0,9" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Start with Windows" FontSize="12" Foreground="#DFE5EC" />
+                        <TextBlock Text="Adds EarDial to the Startup folder."
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource DimText}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <ToggleButton x:Name="BootSwitch"
+                                  Grid.Column="1"
+                                  Style="{StaticResource Switch}"
+                                  VerticalAlignment="Top"
+                                  Margin="10,1,0,0"
+                                  Click="Boot_Click" />
+                </Grid>
+
+                <Grid Margin="0,9,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Bluetooth per-ear fix" FontSize="12" Foreground="#DFE5EC" />
+                        <TextBlock Text="Windows hands the volume to the headset, so L/R never splits. This turns that off and does volume locally. Needs admin, then a reconnect."
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource DimText}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,2,0,0" />
+                        <TextBlock x:Name="FixStatus"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource Bad}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,3,0,0"
+                                   Visibility="Collapsed" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="10,1,0,0" HorizontalAlignment="Right">
+                        <Button x:Name="FixPill"
+                                Style="{StaticResource Pill}"
+                                Content="Apply"
+                                Click="FixPill_Click" />
+                        <Button x:Name="FixRevert"
+                                Style="{StaticResource FooterButton}"
+                                Content="Revert"
+                                HorizontalAlignment="Right"
+                                Margin="0,2,0,0"
+                                Visibility="Collapsed"
+                                Click="FixRevert_Click" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+
         </StackPanel>
     </Border>
 </Window>
