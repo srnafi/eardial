@@ -17,8 +17,8 @@ UI is written.
 - [ ] Detect devices that accept the write and ignore it
 - [x] Widget window
 - [x] Pin widget to the desktop layer
-- [ ] Remember selected device
-- [ ] Single-file release build
+- [x] Remember selected device
+- [x] Single-file release build
 
 ## How it works
 
@@ -42,6 +42,20 @@ the same level on both sides. EarDial detects this and says so.
 dotnet build
 dotnet run --project src/EarDial
 ```
+
+## Release
+
+Single self-contained executable, no runtime to install:
+
+```
+dotnet publish src/EarDial -c Release -r win-x64 --self-contained true ^
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
+  -p:EnableCompressionInSingleFile=true -o publish
+```
+
+That produces `publish/EarDial.exe` at roughly 73 MB. Dropping
+`--self-contained` gives a much smaller file but requires the .NET 10
+desktop runtime on the machine.
 
 ## Probes
 
