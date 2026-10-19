@@ -70,6 +70,7 @@ internal sealed class ShowDesktopWatcher : IDisposable
     private readonly WinEventProc _proc;
     private readonly DispatcherTimer _debounce;
     private readonly DispatcherTimer _safetyNet;
+    private readonly System.Text.StringBuilder _name = new(128);
 
     private IntPtr _hook1;
     private IntPtr _hook2;
@@ -84,12 +85,31 @@ internal sealed class ShowDesktopWatcher : IDisposable
         _proc = (_, _, _, objectId, _, _, _) =>
         {
             if (objectId != 0) return;
+
+            // Foreground changes to a normal app window are applied directly, so
+            // the widget never sits over an app, not even briefly.
+            IntPtr foreground = GetForegroundWindow();
+            if (foreground != IntPtr.Zero)
+            {
+                _name.Clear();
+                GetClassName(foreground, _name, _name.Capacity);
+                string className = _name.ToString();
+
+                if (className is not ("Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd"
+                    or "Windows.UI.Core.CoreWindow"))
+                {
+                    Apply();
+                    return;
+                }
+            }
+
+            // Show Desktop animates windows away, so shell transitions settle first.
             _debounce.Stop();
             _debounce.Start();
         };
 
         // Show Desktop animates windows away, so evaluate once it settles.
-        _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
         _debounce.Tick += (_, _) =>
         {
             _debounce.Stop();
@@ -97,7 +117,7 @@ internal sealed class ShowDesktopWatcher : IDisposable
         };
 
         // Catches window closes and anything the events miss.
-        _safetyNet = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _safetyNet = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _safetyNet.Tick += (_, _) => Apply();
     }
 
