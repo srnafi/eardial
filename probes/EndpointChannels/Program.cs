@@ -39,6 +39,12 @@ if (args.Contains("set"))
     return;
 }
 
+if (args.Contains("desktop"))
+{
+    DesktopScan();
+    return;
+}
+
 var devices = enumerator
     .EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
     .ToList();
@@ -316,4 +322,105 @@ static void SetBalance(MMDeviceEnumerator enumerator, string[] args)
     volume.Channels[1].VolumeLevelScalar = Math.Clamp(right / 100f, 0f, 1f);
 
     Console.WriteLine($"set {volume.Channels[0].VolumeLevelScalar:P0} / {volume.Channels[1].VolumeLevelScalar:P0}");
+}
+
+// Enumerates windows the widget's DesktopInView check would treat as a visible app.
+static void DesktopScan()
+{
+    foreach (System.Collections.Generic.KeyValuePair<string, string> _ in new[]
+             {
+                 new System.Collections.Generic.KeyValuePair<string, string>("a", "b")
+             })
+    {
+        break;
+    }
+
+    var list = new System.Collections.Generic.List<string>();
+    var sb = new System.Text.StringBuilder(128);
+
+    Native.EnumWindows((h, _) =>
+    {
+        if (!Native.IsWindowVisible(h) || Native.IsIconic(h)) return true;
+        if (Native.DwmGetWindowAttribute(h, 13, out int cloaked, 4) == 0 && cloaked != 0)
+        {
+            list.Add($"CLOAKED {Native.Name(h, sb)}");
+            return true;
+        }
+        if (Native.GetWindow(h, 4) != IntPtr.Zero)
+        {
+            list.Add($"OWNED  {Native.Name(h, sb)}");
+            return true;
+        }
+        if (Native.GetWindowTextLength(h) == 0)
+        {
+            list.Add($"NOTITLE {Native.Name(h, sb)}");
+            return true;
+        }
+
+        int style = Native.GetWindowLong(h, -20);
+        if ((style & 0x80) != 0 && (style & 0x40000) == 0)
+        {
+            list.Add($"TOOLWIN {Native.Name(h, sb)}");
+            return true;
+        }
+
+        string cls = Native.Name(h, sb);
+        if (cls is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd")
+        {
+            list.Add($"SHELL   {cls}");
+            return true;
+        }
+
+        list.Add($"APP!!   {cls}  title={Native.Title(h)}");
+        return true;
+    }, IntPtr.Zero);
+
+    Console.WriteLine("windows the widget treats as covering the desktop:");
+    foreach (string line in list) Console.WriteLine("  " + line);
+}
+
+static class Native
+{
+    public delegate bool EnumProc(IntPtr h, IntPtr l);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumProc cb, IntPtr l);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr h);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern bool IsIconic(IntPtr h);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern IntPtr GetWindow(IntPtr h, int cmd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern int GetWindowLong(IntPtr h, int index);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(IntPtr h);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr h, System.Text.StringBuilder sb, int max);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder sb, int max);
+
+    [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int value, int size);
+
+    public static string Name(IntPtr h, System.Text.StringBuilder sb)
+    {
+        sb.Clear();
+        GetClassName(h, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    public static string Title(IntPtr h)
+    {
+        var sb = new System.Text.StringBuilder(128);
+        GetWindowText(h, sb, sb.Capacity);
+        return sb.ToString();
+    }
 }

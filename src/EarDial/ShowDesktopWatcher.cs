@@ -22,6 +22,7 @@ internal sealed class ShowDesktopWatcher : IDisposable
     private const int GwOwner = 4;
     private const int SwShowNoActivate = 4;
     private const int DwmCloakedAttribute = 13;
+    private const int DwmCloakedShield = 11;
 
     private delegate void WinEventProc(IntPtr hook, uint eventId, IntPtr window, int objectId, int childId, uint thread, uint time);
     private delegate bool EnumProc(IntPtr window, IntPtr lParam);
@@ -150,7 +151,16 @@ internal sealed class ShowDesktopWatcher : IDisposable
         EnumWindows((window, _) =>
         {
             if (window == self || !IsWindowVisible(window) || IsIconic(window)) return true;
-            if (DwmGetWindowAttribute(window, DwmCloakedAttribute, out int cloaked, 4) == 0 && cloaked != 0) return true;
+
+            // Cloaked windows are managed by DWM but not drawn, so they cannot
+            // cover anything. Attribute 11 catches shell-cloaked surfaces that
+            // attribute 13 does not report on Windows 10.
+            if ((DwmGetWindowAttribute(window, DwmCloakedAttribute, out int cloaked, 4) == 0 && cloaked != 0)
+                || (DwmGetWindowAttribute(window, DwmCloakedShield, out int shielded, 4) == 0 && shielded != 0))
+            {
+                return true;
+            }
+
             if (GetWindow(window, GwOwner) != IntPtr.Zero) return true;
             if (GetWindowTextLength(window) == 0) return true;
 
@@ -159,7 +169,12 @@ internal sealed class ShowDesktopWatcher : IDisposable
 
             name.Clear();
             GetClassName(window, name, name.Capacity);
-            if (name.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
+            string className = name.ToString();
+
+            if (className is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
+
+            // The UWP text-input host is resident but never shown to the user.
+            if (className == "Windows.UI.Core.CoreWindow") return true;
 
             appVisible = true;
             return false;
