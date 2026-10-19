@@ -8,7 +8,12 @@
     <Nullable>enable</Nullable>
     <AssemblyName>EarDial</AssemblyName>
     <RootNamespace>EarDial</RootNamespace>
+    <ApplicationIcon>Assets\eardial.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\eardial.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="NAudio" Version="3.2.0" />
