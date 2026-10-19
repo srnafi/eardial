@@ -6,7 +6,7 @@ namespace EarDial;
 internal sealed class AppSettings
 {
     public string? DeviceId { get; set; }
-    public bool Pinned { get; set; } = true;
+    public bool AlwaysOnTop { get; set; } = true;
 }
 
 internal static class SettingsStore

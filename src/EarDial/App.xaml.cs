@@ -97,8 +97,7 @@ public partial class App : Application
         var builder = new StringBuilder();
         builder.AppendLine(
             $"window {window.Left:F0},{window.Top:F0} {window.ActualWidth:F0}x{window.ActualHeight:F0} "
-            + $"topmost={window.Topmost} visible={window.IsVisible} "
-            + ((MainWindow)window).PinStatus);
+            + $"topmost={window.Topmost} visible={window.IsVisible}");
 
         Walk(window, builder, 0);
         return builder.ToString();
