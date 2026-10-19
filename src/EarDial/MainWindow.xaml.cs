@@ -85,6 +85,8 @@ public partial class MainWindow : Window
         Bind();
     }
 
+    private (Slider Slider, TextBlock Readout)? _masterRow;
+
     private void Bind()
     {
         _loading = true;
@@ -124,7 +126,11 @@ public partial class MainWindow : Window
                     labels[i],
                     _current.Levels[i],
                     true,
-                    value => EndpointAudio.SetChannel(id, channel, value),
+                    value =>
+                    {
+                        EndpointAudio.SetChannel(id, channel, value);
+                        RaiseMaster(id);
+                    },
                     () => EndpointAudio.NudgeMaster(id)));
             }
         }
@@ -134,7 +140,7 @@ public partial class MainWindow : Window
             HintText.Visibility = Visibility.Visible;
         }
 
-        AddRow(
+        _masterRow = AddRow(
             "Master",
             _current.Master,
             true,
@@ -164,7 +170,36 @@ public partial class MainWindow : Window
             _channelRows[i].Slider.Value = value;
             _channelRows[i].Readout.Text = (value / 100).ToString("P0");
         }
+
+        if (_masterRow is { } row && Math.Abs(row.Slider.Value - state.Master * 100) > 0.5)
+        {
+            row.Slider.Value = state.Master * 100;
+            row.Readout.Text = state.Master.ToString("P0");
+        }
+
         _loading = false;
+    }
+
+    // Keeps the master at or above the loudest channel so a raised channel is
+    // audible instead of being capped by the master level.
+    private void RaiseMaster(string id)
+    {
+        var state = EndpointAudio.Reload(id);
+        if (state is null || state.Channels == 0) return;
+
+        float highest = state.Levels.Max();
+        if (highest <= state.Master) return;
+
+        EndpointAudio.SetMaster(id, highest);
+        _current = EndpointAudio.Reload(id) ?? state;
+
+        if (_masterRow is { } row)
+        {
+            _loading = true;
+            row.Slider.Value = highest * 100;
+            row.Readout.Text = highest.ToString("P0");
+            _loading = false;
+        }
     }
 
     private (Slider Slider, TextBlock Readout) AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
