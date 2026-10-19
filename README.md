@@ -1,18 +1,16 @@
 # EarDial
 
-A small desktop widget that puts per-ear volume control one click away.
+A desktop widget for per-ear volume on Windows.
 
-Windows can already set the left and right volume of a sound device
-separately, but the setting is buried in Control Panel. EarDial keeps a
-widget on the desktop with a slider pair for each output device, so
-balancing headphones takes a second instead of a minute.
+Windows can already set a device's left and right volume separately, but the
+controls are buried in Control Panel. EarDial keeps a small card on the
+desktop with a slider pair for the selected output device.
 
 ## Status
 
 - [x] Enumerate render endpoints and read per-channel volume
 - [x] Write per-channel volume, confirmed audible on a Bluetooth headset
-- [x] Widget window
-- [x] Custom slider, switch and pill styling
+- [x] Widget window with custom slider, switch and pill styling
 - [x] Remember selected device and link state
 - [x] Linked mode that preserves the L/R offset
 - [x] Detect single-channel endpoints and explain them in place
@@ -22,42 +20,47 @@ balancing headphones takes a second instead of a minute.
 
 ## How it works
 
-Per-ear volume is the per-channel volume of a render endpoint, exposed by
-Core Audio through `IAudioEndpointVolume`. NAudio wraps the same API.
+Per-ear volume is the per-channel volume of a render endpoint. Core Audio
+exposes it through `IAudioEndpointVolume`, and NAudio wraps the same API.
 
 ### Linked
 
-Linked keeps the *offset* between the ears, not their absolute values.
-Dragging either slider moves the other by the same delta, so a balance
-dialed in for one pair of headphones survives every later volume change.
-The footer prints the offset it is holding (`R -12` means the right ear is
-twelve points below the left). Unlink the ears to move them independently;
-Centre snaps both back to their average.
+Linked holds the offset between the ears rather than their absolute values.
+Dragging either slider moves the other by the same delta, so a balance you
+dialed in survives the next volume change. The footer prints the offset it is
+holding: `R -12` means the right ear sits twelve points below the left.
+Unlink the ears to move them independently. Centre sets both to their average.
 
 ### Master
 
-Master is the ceiling, not a third channel. It never reads below the
-loudest ear. Dragging it rescales both channels by the same ratio
-(`SetMasterScaled`), so the balance is untouched by a volume change.
+Master sets the ceiling for both ears and never reads below the loudest one.
+Dragging it rescales both channels by the same ratio (`SetMasterScaled`), so
+the balance does not move.
 
 ### Bluetooth headsets
 
-Most Bluetooth headsets take volume over AVRCP "absolute volume": Windows
-sends a level and the headset applies it. The endpoint then reports a
-single channel and per-ear writes are accepted but ignored, so the widget
-has nothing to split.
+Most Bluetooth headsets take volume over AVRCP absolute volume. Windows sends
+a level and the headset applies it, so the endpoint reports a single channel
+and per-ear writes are accepted but ignored.
 
 The fix is the machine-wide `DisableAbsoluteVolume` value under
-`HKLM\SYSTEM\CurrentControlSet\Control\Bluetooth\Audio\AVRCP\CT`, which
-makes Windows own the level locally. It needs admin, so the write happens
-in an elevated child process (`--set-absolute-volume 0|1`); the parent
-confirms by reading the key back rather than trusting the exit code, and
-bounces `BTAGService` so no unplug is needed.
+`HKLM\SYSTEM\CurrentControlSet\Control\Bluetooth\Audio\AVRCP\CT`, which makes
+Windows own the level locally. It needs admin, so the write happens in an
+elevated child process (`--set-absolute-volume 0|1`). The parent reads the key
+back rather than trusting the exit code, then restarts `BTAGService` so no
+unplug is needed.
 
-When a single-channel endpoint is detected, the widget says so in a chip
-above the sliders. On a Bluetooth endpoint the chip carries a one-click
-Fix; elsewhere it is a plain explanation. The drawer has the same action
-plus Revert.
+When a single-channel endpoint is detected, a chip above the sliders says so.
+On a Bluetooth endpoint the chip carries a one-click Fix; elsewhere it is a
+plain explanation. The drawer has the same action plus Revert.
+
+### Slider geometry
+
+Each slider's thumb is exactly as wide as the knob it draws, with a
+transparent overhang for the grab area. A wider thumb pushes the knob in from
+the track ends and stops the fill at the thumb's edge instead of the dot's,
+which shows up as a gap between the blue line and the knob. Keep the two
+widths equal when restyling.
 
 ## Requirements
 
@@ -82,13 +85,13 @@ dotnet publish src/EarDial -c Release -r win-x64 --self-contained true ^
 ```
 
 That produces `publish/EarDial.exe` at roughly 73 MB. Dropping
-`--self-contained` gives a much smaller file but requires the .NET 10
-desktop runtime on the machine.
+`--self-contained` gives a much smaller file but requires the .NET 10 desktop
+runtime on the machine.
 
 ## Diagnostics
 
 The app is a WinExe, so it has no console. Each flag writes its result to a
-file instead. Not for release builds.
+file instead. None of this ships in a release build.
 
 | Flag | Writes |
 | --- | --- |
@@ -99,12 +102,13 @@ file instead. Not for release builds.
 | `--drawer` | Opens the settings drawer before the above |
 | `--chip` | Forces the warning chip before the above |
 | `--select <n>` | Selects a device by list index before the above |
+| `--ear <n> <value>` | Pins an ear slider for a capture without writing to the endpoint |
 
 `--selftest-ui` restores the device to its original levels when it finishes.
 
 ## Probes
 
-Throwaway code that answers one question each. Not shipped.
+Throwaway code, one question per project, excluded from the build.
 
 ```
 dotnet run --project probes/EndpointChannels

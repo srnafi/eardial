@@ -222,7 +222,14 @@
                                     <Thumb>
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Grid Width="26" Height="26" Background="Transparent">
+                                                <!-- The thumb is exactly as wide as the dot. A
+                                                     wider thumb would push the dot in from the
+                                                     track ends and leave the fill stopping at
+                                                     the thumb's edge instead of the dot's. The
+                                                     transparent overhang keeps a 26px grab
+                                                     area without affecting layout. -->
+                                                <Grid Width="14" Height="26" Background="Transparent">
+                                                    <Rectangle Margin="-6,0,-6,0" Fill="Transparent" />
                                                     <Ellipse x:Name="Dot"
                                                              Width="14"
                                                              Height="14"
@@ -292,7 +299,11 @@
                                     <Thumb>
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Grid Width="20" Height="20" Background="Transparent">
+                                                <!-- Same rule as the ear sliders: thumb width
+                                                     equals dot width so the fill abuts the dot
+                                                     and the dot reaches both track ends. -->
+                                                <Grid Width="10" Height="20" Background="Transparent">
+                                                    <Rectangle Margin="-5,0,-5,0" Fill="Transparent" />
                                                     <Ellipse x:Name="Dot"
                                                              Width="10"
                                                              Height="10"

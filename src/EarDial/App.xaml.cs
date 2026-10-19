@@ -47,6 +47,16 @@ public partial class App : Application
         if (select >= 0 && select + 1 < e.Args.Length && int.TryParse(e.Args[select + 1], out int pick))
             window.SelectDevice(pick);
 
+        // Diagnostic: --ear <index> <value> pins a slider for a capture.
+        int ear = Array.IndexOf(e.Args, "--ear");
+        if (ear >= 0 && ear + 2 < e.Args.Length
+            && int.TryParse(e.Args[ear + 1], out int earIndex)
+            && double.TryParse(e.Args[ear + 2], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double earValue))
+        {
+            window.SetEarForTest(earIndex, earValue);
+        }
+
         int uiTest = Array.IndexOf(e.Args, "--selftest-ui");
         if (uiTest >= 0 && uiTest + 1 < e.Args.Length)
         {

@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private bool _dragging;
     private bool _linked = true;
     private bool _forceChip;
+    private bool _freezeEars;
     private readonly AppSettings _settings;
 
     private readonly ShowDesktopWatcher _watcher;
@@ -270,6 +271,8 @@ public partial class MainWindow : Window
         if (state is null) return;
 
         _current = state;
+
+        if (_freezeEars) return;
 
         _loading = true;
         for (int i = 0; i < _earRows.Count && i < state.Levels.Length; i++)
@@ -579,6 +582,21 @@ public partial class MainWindow : Window
         _loading = false;
 
         Bind();
+    }
+
+    // Diagnostic entry point for --ear: positions an ear slider for a capture
+    // without writing to the endpoint, so the knob can be checked at the ends
+    // of its travel.
+    internal void SetEarForTest(int index, double value)
+    {
+        if (index < 0 || index >= _earRows.Count) return;
+
+        _freezeEars = true;
+
+        _loading = true;
+        _earRows[index].Slider.Value = value;
+        _earRows[index].Readout.Text = Percent(value);
+        _loading = false;
     }
 
     // Headless behaviour check for --selftest-ui. Drives the real handlers and
