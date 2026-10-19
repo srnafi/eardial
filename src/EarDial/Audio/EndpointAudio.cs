@@ -19,6 +19,15 @@ public static class EndpointAudio
     // a fresh volume command.
     private const float NudgeStep = 0.25f;
 
+    // Fires on the UI thread when this endpoint's volume or mute changes from
+    // anywhere (system Settings, keyboard keys, other apps). Registered in
+    // MainWindow.Bind for the selected device; the callback ID is checked by
+    // the caller because the hook can outlive a rebind for a moment.
+    public static event Action<string>? EndpointChanged;
+
+    private static readonly Dictionary<string, MMDevice> _hooks = new();
+    private static readonly object _hookLock = new();
+
     public static List<EndpointState> List()
     {
         using var enumerator = new MMDeviceEnumerator();
@@ -29,6 +38,41 @@ public static class EndpointAudio
             .OrderByDescending(state => state.CanSplit)
             .ThenBy(state => state.Name)
             .ToList();
+    }
+
+    // ID of the endpoint Windows routes sound to right now. Volume changed in
+    // system Settings targets this device, so the widget follows it.
+    public static string? DefaultId()
+    {
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            return enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia).ID;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Hooks the device for volume/mute callbacks and returns a snapshot.
+    // Callbacks arrive on a threadpool thread, so they marshal to the UI via
+    // Dispatcher. A stale callback for a device no longer bound is dropped.
+    public static EndpointState? Hook(string id, System.Windows.Threading.Dispatcher dispatcher)
+    {
+        lock (_hookLock)
+        {
+            if (!_hooks.TryGetValue(id, out var device))
+            {
+                device = new MMDeviceEnumerator().GetDevice(id);
+                device.AudioEndpointVolume.OnVolumeNotification += data =>
+                    dispatcher.BeginInvoke(() => EndpointChanged?.Invoke(id));
+                // NAudio has no separate mute callback; mute arrives inside
+                // VolumeNotification, so the timer below covers mute-only flips.
+                _hooks[id] = device;
+            }
+            return Read(device);
+        }
     }
 
     private static EndpointState Read(MMDevice device)

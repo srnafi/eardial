@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly List<(Slider Slider, TextBlock Readout)> _channelRows = new();
     private EndpointState? _current;
     private bool _loading;
+    private bool _dragging;
     private readonly AppSettings _settings;
 
     internal string PinStatus => $"topmost={Topmost}";
@@ -90,6 +91,7 @@ public partial class MainWindow : Window
     }
 
     private (Slider Slider, TextBlock Readout)? _masterRow;
+    private readonly System.Windows.Threading.DispatcherTimer _poll = new() { Interval = TimeSpan.FromMilliseconds(400) };
 
     private void Bind()
     {
@@ -114,6 +116,16 @@ public partial class MainWindow : Window
         MuteBox.IsEnabled = true;
         MuteBox.IsChecked = _current.Muted;
         MuteState.Text = _current.Muted ? "On" : "Off";
+
+        // Push channel: instant refresh when Windows changes this endpoint
+        // outside the widget. The timer stays as a fallback for the rest.
+        var bound = EndpointAudio.Hook(id, Dispatcher);
+        if (bound is not null)
+        {
+            _current = bound;
+            EndpointAudio.EndpointChanged -= OnEndpointChanged;
+            EndpointAudio.EndpointChanged += OnEndpointChanged;
+        }
 
         if (_current.CanSplit)
         {
@@ -156,6 +168,55 @@ public partial class MainWindow : Window
             () => { });
 
         _loading = false;
+        _poll.Tick += (_, _) => PollExternal();
+        _poll.Start();
+    }
+
+    // External changes (system volume dialog, keyboard keys, another app) must
+    // show up here. OnVolumeNotification pushes instantly; the timer is a
+    // fallback and also rebinds when the device list changes so a newly
+    // connected device appears without hitting Refresh.
+    private void PollExternal()
+    {
+        if (_loading || _dragging) return;
+        if (_current is null) { ReloadIfChanged(); return; }
+
+        SyncChannels();
+        ReloadIfChanged();
+    }
+
+    private void ReloadIfChanged()
+    {
+        if (_loading || _dragging) return;
+
+        // Follow the system default device: volume changed in Settings always
+        // targets the default endpoint, so that is the one worth watching.
+        string? defaultId = EndpointAudio.DefaultId();
+        if (defaultId is not null && _current?.Id != defaultId)
+        {
+            _settings.DeviceId = defaultId;
+            int index = _devices.FindIndex(d => d.Id == defaultId);
+            if (index >= 0)
+            {
+                _loading = true;
+                DeviceBox.SelectedIndex = index;
+                _loading = false;
+                Bind();
+                return;
+            }
+        }
+
+        var list = EndpointAudio.List();
+        bool same = list.Count == _devices.Count &&
+                    !list.Zip(_devices, (a, b) => a.Id != b.Id).Contains(true);
+        if (!same) LoadDevices();
+    }
+
+    private void OnEndpointChanged(string id)
+    {
+        if (_loading || _dragging) return;
+        if (_current?.Id != id) return;
+        SyncChannels();
     }
 
     private void SyncChannels()
@@ -180,6 +241,10 @@ public partial class MainWindow : Window
             row.Slider.Value = state.Master * 100;
             row.Readout.Text = state.Master.ToString("P0");
         }
+
+        bool muted = state.Muted;
+        if (MuteBox.IsChecked != muted) MuteBox.IsChecked = muted;
+        MuteState.Text = muted ? "On" : "Off";
 
         _loading = false;
     }
@@ -243,7 +308,12 @@ public partial class MainWindow : Window
             apply((float)(args.NewValue / 100));
         };
 
-        slider.AddHandler(Thumb.DragCompletedEvent, new RoutedEventHandler((_, _) => commit()));
+        slider.AddHandler(Thumb.DragStartedEvent, new RoutedEventHandler((_, _) => _dragging = true));
+        slider.AddHandler(Thumb.DragCompletedEvent, new RoutedEventHandler((_, _) =>
+        {
+            _dragging = false;
+            commit();
+        }));
 
         Grid.SetColumn(slider, 1);
         Grid.SetColumn(readout, 2);
