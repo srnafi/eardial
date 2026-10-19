@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using EarDial.Audio;
@@ -82,6 +83,7 @@ public partial class MainWindow : Window
         string id = _current.Id;
         MuteBox.IsEnabled = true;
         MuteBox.IsChecked = _current.Muted;
+        MuteState.Text = _current.Muted ? "On" : "Off";
 
         if (_current.CanSplit)
         {
@@ -143,10 +145,10 @@ public partial class MainWindow : Window
 
     private (Slider Slider, TextBlock Readout) AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
     {
-        var grid = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(54) });
+        var grid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
         grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
 
         var name = new TextBlock
         {
@@ -165,6 +167,8 @@ public partial class MainWindow : Window
             Foreground = (Brush)FindResource("SecondaryText"),
         };
 
+        Typography.SetNumeralAlignment(readout, FontNumeralAlignment.Tabular);
+
         var slider = new Slider
         {
             Minimum = 0,
@@ -172,6 +176,7 @@ public partial class MainWindow : Window
             Value = value * 100,
             IsEnabled = enabled,
             VerticalAlignment = VerticalAlignment.Center,
+            Style = (Style)FindResource("WidgetSlider"),
         };
 
         slider.ValueChanged += (_, args) =>
@@ -206,7 +211,10 @@ public partial class MainWindow : Window
     private void Mute_Click(object sender, RoutedEventArgs e)
     {
         if (_current is null) return;
-        EndpointAudio.SetMute(_current.Id, MuteBox.IsChecked == true);
+
+        bool muted = MuteBox.IsChecked == true;
+        EndpointAudio.SetMute(_current.Id, muted);
+        MuteState.Text = muted ? "On" : "Off";
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => LoadDevices();

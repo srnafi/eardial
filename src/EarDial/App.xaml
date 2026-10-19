@@ -22,9 +22,31 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{StaticResource SecondaryText}" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="6,0" />
+        </Style>
+
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Box"
+                                Width="22"
+                                Height="22"
+                                CornerRadius="11"
+                                Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="#22FFFFFF" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     <Style x:Key="DeviceSelector" TargetType="ComboBox">
             <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
@@ -58,12 +80,12 @@
                                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                               TextElement.Foreground="{TemplateBinding Foreground}" />
 
-                            <Path Data="M0,0 L4,4 L8,0"
-                                  Stroke="#9AA3AF"
-                                  StrokeThickness="1.4"
-                                  HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,10,0" />
+                            <TextBlock Text="&#x25BE;"
+                                   FontSize="12"
+                                   Foreground="#B6BEC9"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
 
                             <Popup x:Name="PART_Popup"
                                    Placement="Bottom"
@@ -104,6 +126,110 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="Row" Property="Background" Value="#34FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    <Style x:Key="WidgetSlider" TargetType="Slider">
+            <Setter Property="Height" Value="20" />
+            <Setter Property="IsMoveToPointEnabled" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="20" VerticalAlignment="Center">
+                            <Border Height="4"
+                                    CornerRadius="2"
+                                    Margin="7,0,7,0"
+                                    Background="#2C313B"
+                                    VerticalAlignment="Center" />
+
+                            <Track x:Name="PART_Track" VerticalAlignment="Center" Margin="7,0,7,0">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4"
+                                                        CornerRadius="2"
+                                                        Background="{StaticResource Accent}" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+
+                                <Track.Thumb>
+                                    <Thumb x:Name="Knob">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Grid Width="24" Height="24">
+                                                    <Ellipse x:Name="Dot"
+                                                             Width="13"
+                                                             Height="13"
+                                                             Fill="#F2F5F7" />
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Dot" Property="Fill" Value="#FFFFFF" />
+                                                        <Setter TargetName="Dot" Property="Width" Value="15" />
+                                                        <Setter TargetName="Dot" Property="Height" Value="15" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="Dot" Property="Fill" Value="#FFFFFF" />
+                                                        <Setter TargetName="Dot" Property="Width" Value="15" />
+                                                        <Setter TargetName="Dot" Property="Height" Value="15" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WidgetToggle" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="Track"
+                                    Width="34"
+                                    Height="18"
+                                    CornerRadius="9"
+                                    Background="#2C313B">
+                                <Ellipse x:Name="Knob"
+                                         Width="12"
+                                         Height="12"
+                                         Fill="#C6CCD6"
+                                         HorizontalAlignment="Left"
+                                         Margin="3,0,0,0" />
+                            </Border>
+                            <ContentPresenter Margin="9,0,0,0"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{StaticResource SecondaryText}" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{StaticResource Accent}" />
+                                <Setter TargetName="Knob" Property="Fill" Value="#FFFFFF" />
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -161,6 +162,9 @@ public partial class App : Application
                 break;
             case CheckBox check:
                 builder.AppendLine($"{pad}check \"{check.Content}\" = {check.IsChecked}");
+                break;
+            case ToggleButton toggle:
+                builder.AppendLine($"{pad}toggle \"{toggle.Content}\" = {toggle.IsChecked}");
                 break;
         }
 

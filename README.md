@@ -16,7 +16,7 @@ UI is written.
 - [x] Write per-channel volume, confirmed audible on a Bluetooth headset
 - [ ] Detect devices that accept the write and ignore it
 - [x] Widget window
-- [x] Pin widget to the desktop layer
+- [x] Custom slider and toggle styling
 - [x] Remember selected device
 - [x] Single-file release build
 
