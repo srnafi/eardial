@@ -31,6 +31,9 @@ internal sealed class VisibilityGuard
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr handle, System.Text.StringBuilder name, int maxLength);
+
     private readonly Window _window;
     private readonly DispatcherTimer _timer;
     private bool _covered;
@@ -60,6 +63,13 @@ internal sealed class VisibilityGuard
 
         if (foreground == self || foreground == IntPtr.Zero) return false;
         if (IsIconic(foreground)) return false;
+
+        // Show Desktop raises the shell's own window; the widget should stay
+        // visible then, not hide behind the wallpaper it sits on.
+        var className = new System.Text.StringBuilder(256);
+        GetClassName(foreground, className, className.Capacity);
+        string name = className.ToString();
+        if (name is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
 
         // The widget itself is foreground while it is being used.
         GetWindowThreadProcessId(foreground, out uint processId);
