@@ -51,10 +51,10 @@ public static class EndpointAudio
         using var enumerator = new MMDeviceEnumerator();
         return enumerator.GetDevice(id);
     }
-
     public static void SetChannel(string id, int index, float value)
     {
-        var volume = Open(id).AudioEndpointVolume;
+        using var device = Open(id);
+        var volume = device.AudioEndpointVolume;
         if (index >= volume.Channels.Count) return;
 
         volume.Channels[index].VolumeLevelScalar = Math.Clamp(value, 0f, 1f);
@@ -62,8 +62,8 @@ public static class EndpointAudio
 
     public static void SetMaster(string id, float value)
     {
-        var volume = Open(id).AudioEndpointVolume;
-        volume.MasterVolumeLevelScalar = Math.Clamp(value, 0f, 1f);
+        using var device = Open(id);
+        device.AudioEndpointVolume.MasterVolumeLevelScalar = Math.Clamp(value, 0f, 1f);
     }
 
     // Setting master volume alone leaves the channel levels where they were.
@@ -71,7 +71,8 @@ public static class EndpointAudio
     // when the master is dragged down or up.
     public static void SetMasterScaled(string id, float value)
     {
-        var volume = Open(id).AudioEndpointVolume;
+        using var device = Open(id);
+        var volume = device.AudioEndpointVolume;
         int channels = volume.Channels.Count;
 
         float current = volume.MasterVolumeLevelScalar;
@@ -97,14 +98,16 @@ public static class EndpointAudio
 
     public static void SetMute(string id, bool muted)
     {
-        Open(id).AudioEndpointVolume.Mute = muted;
+        using var device = Open(id);
+        device.AudioEndpointVolume.Mute = muted;
     }
 
     public static EndpointState? Reload(string id)
     {
         try
         {
-            return Read(Open(id));
+            using var device = Open(id);
+            return Read(device);
         }
         catch
         {
@@ -116,7 +119,8 @@ public static class EndpointAudio
     {
         try
         {
-            var volume = Open(id).AudioEndpointVolume;
+            using var device = Open(id);
+            var volume = device.AudioEndpointVolume;
             int channels = volume.Channels.Count;
 
             var levels = Enumerable.Range(0, channels)

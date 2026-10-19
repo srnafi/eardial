@@ -30,7 +30,11 @@ public partial class MainWindow : Window
         _watcher = new ShowDesktopWatcher(this, _settings.AlwaysOnTop);
 
         Loaded += OnLoaded;
-        Closed += (_, _) => SaveSettings();
+        Closed += (_, _) =>
+        {
+            _watcher.Dispose();
+            SaveSettings();
+        };
         SourceInitialized += OnSourceInitialized;
         LoadDevices();
     }
@@ -54,7 +58,7 @@ public partial class MainWindow : Window
     private void SaveSettings()
     {
         _settings.DeviceId = _current?.Id;
-        _settings.AlwaysOnTop = Topmost;
+        _settings.AlwaysOnTop = _watcher.ManualTopmost;
 
         SettingsStore.Save(_settings);
     }
@@ -276,8 +280,9 @@ public partial class MainWindow : Window
 
     private void Topmost_Click(object sender, RoutedEventArgs e)
     {
-        Topmost = !Topmost;
-        TopmostMenu.IsChecked = Topmost;
+        _watcher.ManualTopmost = !_watcher.ManualTopmost;
+        TopmostMenu.IsChecked = _watcher.ManualTopmost;
+        _watcher.ApplyManual();
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();

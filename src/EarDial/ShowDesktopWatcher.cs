@@ -7,8 +7,8 @@ namespace EarDial;
 
 // Listens for foreground changes. While the shell desktop is the foreground
 // window the widget is topmost, so Show Desktop cannot cover it; as soon as a
-// normal window takes focus the topmost flag is dropped and the widget sits
-// below other windows again.
+// normal window takes focus the widget goes to the bottom of the normal band,
+// which keeps it above the wallpaper but below other windows.
 internal sealed class ShowDesktopWatcher : IDisposable
 {
     private const uint EventSystemForeground = 0x0003;
@@ -41,11 +41,11 @@ internal sealed class ShowDesktopWatcher : IDisposable
 
     private static readonly IntPtr TopmostFlag = new(-1);
     private static readonly IntPtr NoTopmostFlag = new(-2);
+    private static readonly IntPtr BottomFlag = new(1);
 
     private readonly Window _window;
     private readonly Dispatcher _dispatcher;
     private readonly WinEventProc _procedure;
-    private readonly bool _manualTopmost;
 
     private IntPtr _hook;
 
@@ -53,13 +53,17 @@ internal sealed class ShowDesktopWatcher : IDisposable
     {
         _window = window;
         _dispatcher = window.Dispatcher;
-        _manualTopmost = manualTopmost;
+        ManualTopmost = manualTopmost;
         _procedure = OnWinEvent;
     }
+
+    // When set the widget stays above everything regardless of focus.
+    public bool ManualTopmost { get; set; }
 
     public void Start()
     {
         _hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, _procedure, 0, 0, OutOfContext);
+        ApplyManual();
     }
 
     public void Dispose()
@@ -69,6 +73,14 @@ internal sealed class ShowDesktopWatcher : IDisposable
             UnhookWinEvent(_hook);
             _hook = IntPtr.Zero;
         }
+    }
+
+    public void ApplyManual()
+    {
+        IntPtr self = new WindowInteropHelper(_window).Handle;
+        if (self == IntPtr.Zero) return;
+
+        SetWindowPos(self, ManualTopmost ? TopmostFlag : NoTopmostFlag, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
     }
 
     private void OnWinEvent(IntPtr hook, uint eventId, IntPtr window, int objectId, int childId, uint thread, uint time)
@@ -89,9 +101,12 @@ internal sealed class ShowDesktopWatcher : IDisposable
             bool desktopShown = foreground == shell
                                 || name.ToString() is "Progman" or "WorkerW";
 
-            bool topmost = _manualTopmost || desktopShown;
+            bool topmost = ManualTopmost || desktopShown;
 
-            SetWindowPos(self, topmost ? TopmostFlag : NoTopmostFlag, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
+            // Bottom rather than not-topmost: not-topmost would leave the widget
+            // above the window that just took focus.
+            IntPtr after = topmost ? TopmostFlag : BottomFlag;
+            SetWindowPos(self, after, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
         });
     }
 }
