@@ -26,5 +26,90 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="6,0" />
         </Style>
+    <Style x:Key="DeviceSelector" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
+            <Setter Property="Background" Value="#262A33" />
+            <Setter Property="BorderBrush" Value="#33FFFFFF" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border CornerRadius="6"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1" />
+
+                            <ToggleButton Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <ContentPresenter Margin="10,0,26,0"
+                                              VerticalAlignment="Center"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+
+                            <Path Data="M0,0 L4,4 L8,0"
+                                  Stroke="#9AA3AF"
+                                  StrokeThickness="1.4"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,10,0" />
+
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border Background="#22252C"
+                                        BorderBrush="#33FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Margin="0,4,0,0"
+                                        MinWidth="{TemplateBinding ActualWidth}">
+                                    <ScrollViewer MaxHeight="220">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Row"
+                                Background="Transparent"
+                                CornerRadius="4"
+                                Margin="4,2">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#34FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Application.Resources>
 </Application>
