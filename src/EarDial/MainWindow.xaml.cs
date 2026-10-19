@@ -10,6 +10,7 @@ namespace EarDial;
 public partial class MainWindow : Window
 {
     private List<EndpointState> _devices = new();
+    private readonly List<(Slider Slider, TextBlock Readout)> _channelRows = new();
     private EndpointState? _current;
     private bool _loading;
 
@@ -47,6 +48,7 @@ public partial class MainWindow : Window
     {
         _loading = true;
         SliderHost.Children.Clear();
+        _channelRows.Clear();
 
         _current = DeviceBox.SelectedIndex >= 0 && DeviceBox.SelectedIndex < _devices.Count
             ? _devices[DeviceBox.SelectedIndex]
@@ -76,12 +78,12 @@ public partial class MainWindow : Window
             for (int i = 0; i < _current.Channels; i++)
             {
                 int channel = i;
-                AddRow(
+                _channelRows.Add(AddRow(
                     labels[i],
                     _current.Levels[i],
                     true,
                     value => EndpointAudio.SetChannel(id, channel, value),
-                    () => EndpointAudio.NudgeMaster(id));
+                    () => EndpointAudio.NudgeMaster(id)));
             }
         }
         else
@@ -94,13 +96,36 @@ public partial class MainWindow : Window
             "Master",
             _current.Master,
             true,
-            value => EndpointAudio.SetMaster(id, value),
+            value =>
+            {
+                EndpointAudio.SetMasterScaled(id, value);
+                SyncChannels();
+            },
             () => { });
 
         _loading = false;
     }
 
-    private void AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
+    private void SyncChannels()
+    {
+        if (_current is null) return;
+
+        var state = EndpointAudio.Reload(_current.Id);
+        if (state is null) return;
+
+        _current = state;
+
+        _loading = true;
+        for (int i = 0; i < _channelRows.Count && i < state.Channels; i++)
+        {
+            double value = state.Levels[i] * 100;
+            _channelRows[i].Slider.Value = value;
+            _channelRows[i].Readout.Text = (value / 100).ToString("P0");
+        }
+        _loading = false;
+    }
+
+    private (Slider Slider, TextBlock Readout) AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
     {
         var grid = new Grid { Margin = new Thickness(0, 8, 0, 0) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(54) });
@@ -148,6 +173,7 @@ public partial class MainWindow : Window
         grid.Children.Add(slider);
         grid.Children.Add(readout);
         SliderHost.Children.Add(grid);
+        return (slider, readout);
     }
 
     private void Card_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

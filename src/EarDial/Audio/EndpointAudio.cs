@@ -15,10 +15,8 @@ public sealed record EndpointState(
 
 public static class EndpointAudio
 {
-    // Bluetooth endpoints forward volume over AVRCP. A per-channel write can
-    // leave the headset at hardware zero while Windows still reports 100%, so
-    // every write is followed by a master nudge that re-sends the command.
-    // ponytail: nudge on drag-end only, not per slider tick.
+    // Amount the master is briefly lowered by to make a Bluetooth device accept
+    // a fresh volume command.
     private const float NudgeStep = 0.25f;
 
     public static List<EndpointState> List()
@@ -68,6 +66,35 @@ public static class EndpointAudio
         volume.MasterVolumeLevelScalar = Math.Clamp(value, 0f, 1f);
     }
 
+    // Setting master volume alone leaves the channel levels where they were.
+    // Scaling them by the same ratio keeps the left/right relationship intact
+    // when the master is dragged down or up.
+    public static void SetMasterScaled(string id, float value)
+    {
+        var volume = Open(id).AudioEndpointVolume;
+        int channels = volume.Channels.Count;
+
+        float current = volume.MasterVolumeLevelScalar;
+        float target = Math.Clamp(value, 0f, 1f);
+
+        if (current <= 0.001f || Math.Abs(target - current) < 0.001f)
+        {
+            volume.MasterVolumeLevelScalar = target;
+            return;
+        }
+
+        float[] levels = Enumerable.Range(0, channels)
+            .Select(i => volume.Channels[i].VolumeLevelScalar)
+            .ToArray();
+
+        float ratio = target / current;
+
+        volume.MasterVolumeLevelScalar = target;
+
+        for (int i = 0; i < channels; i++)
+            volume.Channels[i].VolumeLevelScalar = Math.Clamp(levels[i] * ratio, 0f, 1f);
+    }
+
     public static void SetMute(string id, bool muted)
     {
         Open(id).AudioEndpointVolume.Mute = muted;
@@ -102,14 +129,14 @@ public static class EndpointAudio
             Thread.Sleep(150);
             volume.MasterVolumeLevelScalar = master;
 
-            // A master change rescales channel levels on most endpoints, so the
-            // balance has to be put back after the nudge re-sends the command.
+            // Master changes rescale channel levels, so the balance is restored
+            // once the volume command has been sent.
             for (int i = 0; i < channels; i++)
                 volume.Channels[i].VolumeLevelScalar = levels[i];
         }
         catch
         {
-            // Device vanished mid-drag. Reload catches it on the next tick.
+            // Device disappeared between drag and release.
         }
     }
 }
