@@ -5,7 +5,7 @@
         <SolidColorBrush x:Key="CardBackground" Color="#F21B1D23" />
         <SolidColorBrush x:Key="CardBorder" Color="#33FFFFFF" />
         <SolidColorBrush x:Key="PrimaryText" Color="#F2F5F7" />
-        <SolidColorBrush x:Key="SecondaryText" Color="#9AA3AF" />
+        <SolidColorBrush x:Key="SecondaryText" Color="#B6BEC9" />
         <SolidColorBrush x:Key="Accent" Color="#6AA9FF" />
 
         <Style TargetType="TextBlock">
