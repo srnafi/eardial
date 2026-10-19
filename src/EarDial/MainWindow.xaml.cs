@@ -1,0 +1,175 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using EarDial.Audio;
+
+namespace EarDial;
+
+public partial class MainWindow : Window
+{
+    private List<EndpointState> _devices = new();
+    private EndpointState? _current;
+    private bool _loading;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        Loaded += OnLoaded;
+        LoadDevices();
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        var area = SystemParameters.WorkArea;
+        Left = area.Right - ActualWidth - 24;
+        Top = area.Bottom - ActualHeight - 24;
+    }
+
+    private void LoadDevices()
+    {
+        string? previousId = _current?.Id;
+
+        _devices = EndpointAudio.List();
+
+        _loading = true;
+        DeviceBox.ItemsSource = _devices.Select(d => d.Name).ToList();
+
+        int index = previousId is null ? -1 : _devices.FindIndex(d => d.Id == previousId);
+        DeviceBox.SelectedIndex = _devices.Count == 0 ? -1 : Math.Max(0, index);
+        _loading = false;
+
+        Bind();
+    }
+
+    private void Bind()
+    {
+        _loading = true;
+        SliderHost.Children.Clear();
+
+        _current = DeviceBox.SelectedIndex >= 0 && DeviceBox.SelectedIndex < _devices.Count
+            ? _devices[DeviceBox.SelectedIndex]
+            : null;
+
+        if (_current is null)
+        {
+            HintText.Text = "No output devices found.";
+            HintText.Visibility = Visibility.Visible;
+            MuteBox.IsEnabled = false;
+            _loading = false;
+            return;
+        }
+
+        string id = _current.Id;
+        MuteBox.IsEnabled = true;
+        MuteBox.IsChecked = _current.Muted;
+
+        if (_current.CanSplit)
+        {
+            HintText.Visibility = Visibility.Collapsed;
+
+            string[] labels = _current.Channels == 2
+                ? new[] { "Left", "Right" }
+                : Enumerable.Range(1, _current.Channels).Select(i => $"Ch {i}").ToArray();
+
+            for (int i = 0; i < _current.Channels; i++)
+            {
+                int channel = i;
+                AddRow(
+                    labels[i],
+                    _current.Levels[i],
+                    true,
+                    value => EndpointAudio.SetChannel(id, channel, value),
+                    () => EndpointAudio.NudgeMaster(id));
+            }
+        }
+        else
+        {
+            HintText.Text = "This device has one channel, so there is no left or right to split.";
+            HintText.Visibility = Visibility.Visible;
+        }
+
+        AddRow(
+            "Master",
+            _current.Master,
+            true,
+            value => EndpointAudio.SetMaster(id, value),
+            () => { });
+
+        _loading = false;
+    }
+
+    private void AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(54) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+
+        var name = new TextBlock
+        {
+            Text = label,
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = (Brush)FindResource("SecondaryText"),
+        };
+
+        var readout = new TextBlock
+        {
+            Text = value.ToString("P0"),
+            FontSize = 11,
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = (Brush)FindResource("SecondaryText"),
+        };
+
+        var slider = new Slider
+        {
+            Minimum = 0,
+            Maximum = 100,
+            Value = value * 100,
+            IsEnabled = enabled,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        slider.ValueChanged += (_, args) =>
+        {
+            if (_loading) return;
+            readout.Text = (args.NewValue / 100).ToString("P0");
+            apply((float)(args.NewValue / 100));
+        };
+
+        slider.AddHandler(Thumb.DragCompletedEvent, new RoutedEventHandler((_, _) => commit()));
+
+        Grid.SetColumn(slider, 1);
+        Grid.SetColumn(readout, 2);
+        grid.Children.Add(name);
+        grid.Children.Add(slider);
+        grid.Children.Add(readout);
+        SliderHost.Children.Add(grid);
+    }
+
+    private void Card_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+    }
+
+    private void DeviceBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading) return;
+        Bind();
+    }
+
+    private void Mute_Click(object sender, RoutedEventArgs e)
+    {
+        if (_current is null) return;
+        EndpointAudio.SetMute(_current.Id, MuteBox.IsChecked == true);
+    }
+
+    private void Refresh_Click(object sender, RoutedEventArgs e) => LoadDevices();
+
+    private void Topmost_Click(object sender, RoutedEventArgs e) => Topmost = !Topmost;
+
+    private void Exit_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
+}

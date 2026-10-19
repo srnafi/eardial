@@ -1,0 +1,66 @@
+<Window x:Class="EarDial.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="EarDial"
+        Width="330"
+        SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual"
+        Topmost="True">
+
+    <Border x:Name="Card"
+            CornerRadius="12"
+            Background="{StaticResource CardBackground}"
+            BorderBrush="{StaticResource CardBorder}"
+            BorderThickness="1"
+            Padding="16,14,16,16"
+            MouseLeftButtonDown="Card_MouseLeftButtonDown">
+
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Refresh devices" Click="Refresh_Click" />
+                <MenuItem Header="Always on top" IsCheckable="True" Click="Topmost_Click" />
+                <Separator />
+                <MenuItem Header="Exit" Click="Exit_Click" />
+            </ContextMenu>
+        </Border.ContextMenu>
+
+        <StackPanel>
+            <DockPanel LastChildFill="False">
+                <TextBlock Text="EarDial"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource IconButton}"
+                        Content="&#x2715;"
+                        Click="Exit_Click" />
+            </DockPanel>
+
+            <ComboBox x:Name="DeviceBox"
+                      Margin="0,10,0,0"
+                      Height="26"
+                      SelectionChanged="DeviceBox_SelectionChanged" />
+
+            <TextBlock x:Name="HintText"
+                       Margin="0,10,0,0"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource SecondaryText}"
+                       Visibility="Collapsed" />
+
+            <StackPanel x:Name="SliderHost" Margin="0,6,0,0" />
+
+            <CheckBox x:Name="MuteBox"
+                      Margin="0,10,0,0"
+                      Content="Mute"
+                      FontSize="11"
+                      Foreground="{StaticResource SecondaryText}"
+                      Click="Mute_Click" />
+        </StackPanel>
+    </Border>
+</Window>

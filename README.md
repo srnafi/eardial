@@ -13,7 +13,8 @@ Early. The audio layer is being proven against real hardware before any
 UI is written.
 
 - [x] Enumerate render endpoints and read per-channel volume
-- [ ] Write per-channel volume and detect devices that ignore it
+- [x] Write per-channel volume, confirmed audible on a Bluetooth headset
+- [ ] Detect devices that accept the write and ignore it
 - [ ] Widget window
 - [ ] Pin widget to the desktop layer
 - [ ] Remember settings per device
