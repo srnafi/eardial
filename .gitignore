@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+publish/
+artifacts/
+
+# IDE
+.vs/
+*.user
+*.suo
+.idea/
+
+# Local audio settings written at runtime
+settings.json
+
+# Python leftovers from early probing
+.venv/
+
+# OS junk
+Thumbs.db
+.DS_Store

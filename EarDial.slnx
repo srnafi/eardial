@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/probes/">
+    <Project Path="probes/EndpointChannels/EndpointChannels.csproj" />
+  </Folder>
+</Solution>
