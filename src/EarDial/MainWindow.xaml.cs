@@ -13,6 +13,10 @@ public partial class MainWindow : Window
     private readonly List<(Slider Slider, TextBlock Readout)> _channelRows = new();
     private EndpointState? _current;
     private bool _loading;
+    private bool _pinned;
+    private int _pinError;
+
+    internal string PinStatus => $"pinned={_pinned} pinError={_pinError}";
 
     public MainWindow()
     {
@@ -26,6 +30,25 @@ public partial class MainWindow : Window
         var area = SystemParameters.WorkArea;
         Left = area.Right - ActualWidth - 24;
         Top = area.Bottom - ActualHeight - 24;
+
+        ApplyPin(true);
+    }
+
+    private void ApplyPin(bool pinned)
+    {
+        if (pinned)
+        {
+            if (!DesktopPin.Attach(this)) return;
+            Topmost = false;
+        }
+        else
+        {
+            DesktopPin.Detach(this);
+        }
+
+        _pinned = pinned;
+        PinMenu.IsChecked = pinned;
+        _pinError = pinned ? DesktopPin.LastError : 0;
     }
 
     private void LoadDevices()
@@ -195,7 +218,15 @@ public partial class MainWindow : Window
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => LoadDevices();
 
-    private void Topmost_Click(object sender, RoutedEventArgs e) => Topmost = !Topmost;
+    private void Pin_Click(object sender, RoutedEventArgs e) => ApplyPin(PinMenu.IsChecked);
+
+    private void Topmost_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pinned) ApplyPin(false);
+
+        Topmost = !Topmost;
+        TopmostMenu.IsChecked = Topmost;
+    }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
 }

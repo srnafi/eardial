@@ -23,7 +23,8 @@
         <Border.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="Refresh devices" Click="Refresh_Click" />
-                <MenuItem Header="Always on top" IsCheckable="True" Click="Topmost_Click" />
+                <MenuItem x:Name="PinMenu" Header="Pin to desktop" IsCheckable="True" Click="Pin_Click" />
+                <MenuItem x:Name="TopmostMenu" Header="Always on top" IsCheckable="True" Click="Topmost_Click" />
                 <Separator />
                 <MenuItem Header="Exit" Click="Exit_Click" />
             </ContextMenu>
