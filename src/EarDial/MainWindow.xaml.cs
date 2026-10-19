@@ -1,8 +1,10 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using EarDial.Audio;
 
@@ -21,13 +23,29 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         _settings = SettingsStore.Load();
-        Topmost = _settings.AlwaysOnTop;
 
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += (_, _) => SaveSettings();
+        SourceInitialized += OnSourceInitialized;
         LoadDevices();
     }
+
+    private void OnSourceInitialized(object? sender, EventArgs e)
+    {
+        // Keeps the widget out of Alt-Tab while staying clickable.
+        int style = GetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE);
+        SetWindowLong(new WindowInteropHelper(this).Handle, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW);
+    }
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr handle, int index);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr handle, int index, int value);
 
     private void SaveSettings()
     {
