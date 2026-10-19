@@ -129,6 +129,13 @@ public partial class App : Application
         if (after is not null)
         {
             builder.AppendLine($"master 90%  master {after.Master:P0}  L {after.Levels[0]:P0}  R {after.Levels[1]:P0}");
+
+            // The whole point of SetMasterScaled: dragging master must not move
+            // the left/right relationship.
+            float ratioBefore = before.Levels[1] / before.Levels[0];
+            float ratioAfter = after.Levels[1] / after.Levels[0];
+            bool ratioHeld = Math.Abs(ratioAfter - ratioBefore) < 0.01f;
+            builder.AppendLine($"balance L/R {ratioBefore:F2} -> {ratioAfter:F2}  {(ratioHeld ? "held" : "BROKEN")}");
         }
 
         EndpointAudio.SetMaster(id, before.Master);

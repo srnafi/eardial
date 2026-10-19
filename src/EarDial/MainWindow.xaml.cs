@@ -19,8 +19,6 @@ public partial class MainWindow : Window
     private bool _dragging;
     private readonly AppSettings _settings;
 
-    internal string PinStatus => $"topmost={Topmost}";
-
     private readonly ShowDesktopWatcher _watcher;
 
     public MainWindow()
@@ -38,6 +36,11 @@ public partial class MainWindow : Window
         };
         SourceInitialized += OnSourceInitialized;
         LoadDevices();
+
+        // One sync loop, wired once. Bind() runs on every device switch, so a
+        // handler attached there would multiply with each rebind.
+        _poll.Tick += (_, _) => PollExternal();
+        _poll.Start();
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -107,15 +110,11 @@ public partial class MainWindow : Window
         {
             HintText.Text = "No output devices found.";
             HintText.Visibility = Visibility.Visible;
-            MuteBox.IsEnabled = false;
             _loading = false;
             return;
         }
 
         string id = _current.Id;
-        MuteBox.IsEnabled = true;
-        MuteBox.IsChecked = _current.Muted;
-        MuteState.Text = _current.Muted ? "On" : "Off";
 
         // Push channel: instant refresh when Windows changes this endpoint
         // outside the widget. The timer stays as a fallback for the rest.
@@ -141,7 +140,6 @@ public partial class MainWindow : Window
                 _channelRows.Add(AddRow(
                     labels[i],
                     _current.Levels[i],
-                    true,
                     value =>
                     {
                         EndpointAudio.SetChannel(id, channel, value);
@@ -159,7 +157,6 @@ public partial class MainWindow : Window
         _masterRow = AddRow(
             "Master",
             _current.Master,
-            true,
             value =>
             {
                 EndpointAudio.SetMasterScaled(id, value);
@@ -168,8 +165,6 @@ public partial class MainWindow : Window
             () => { });
 
         _loading = false;
-        _poll.Tick += (_, _) => PollExternal();
-        _poll.Start();
     }
 
     // External changes (system volume dialog, keyboard keys, another app) must
@@ -189,10 +184,12 @@ public partial class MainWindow : Window
     {
         if (_loading || _dragging) return;
 
-        // Follow the system default device: volume changed in Settings always
-        // targets the default endpoint, so that is the one worth watching.
+        // The default device is only followed when the selected one is gone
+        // (unplugged, disconnected). A manual pick in the dropdown wins until
+        // that device disappears.
         string? defaultId = EndpointAudio.DefaultId();
-        if (defaultId is not null && _current?.Id != defaultId)
+        if (defaultId is not null && _current?.Id != defaultId
+            && !_devices.Any(d => d.Id == defaultId))
         {
             _settings.DeviceId = defaultId;
             int index = _devices.FindIndex(d => d.Id == defaultId);
@@ -216,7 +213,18 @@ public partial class MainWindow : Window
     {
         if (_loading || _dragging) return;
         if (_current?.Id != id) return;
-        SyncChannels();
+
+        // A device can vanish between the notification and this read
+        // (Bluetooth dropout, unplug). The poll's device-list check handles
+        // the switch; here we must not take the app down.
+        try
+        {
+            SyncChannels();
+        }
+        catch
+        {
+            _current = null;
+        }
     }
 
     private void SyncChannels()
@@ -242,10 +250,6 @@ public partial class MainWindow : Window
             row.Readout.Text = state.Master.ToString("P0");
         }
 
-        bool muted = state.Muted;
-        if (MuteBox.IsChecked != muted) MuteBox.IsChecked = muted;
-        MuteState.Text = muted ? "On" : "Off";
-
         _loading = false;
     }
 
@@ -265,7 +269,7 @@ public partial class MainWindow : Window
         EndpointAudio.SetMaster(id, highest);
     }
 
-    private (Slider Slider, TextBlock Readout) AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
+    private (Slider Slider, TextBlock Readout) AddRow(string label, float value, Action<float> apply, Action commit)
     {
         var grid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
@@ -296,7 +300,7 @@ public partial class MainWindow : Window
             Minimum = 0,
             Maximum = 100,
             Value = value * 100,
-            IsEnabled = enabled,
+            IsEnabled = true,
             VerticalAlignment = VerticalAlignment.Center,
             Style = (Style)FindResource("WidgetSlider"),
         };
@@ -333,15 +337,6 @@ public partial class MainWindow : Window
     {
         if (_loading) return;
         Bind();
-    }
-
-    private void Mute_Click(object sender, RoutedEventArgs e)
-    {
-        if (_current is null) return;
-
-        bool muted = MuteBox.IsChecked == true;
-        EndpointAudio.SetMute(_current.Id, muted);
-        MuteState.Text = muted ? "On" : "Off";
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => LoadDevices();

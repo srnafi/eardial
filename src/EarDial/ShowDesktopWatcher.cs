@@ -85,6 +85,18 @@ internal sealed class ShowDesktopWatcher : IDisposable
     {
         _window = window;
         ManualTopmost = manualTopmost;
+
+        // Created before _proc so the callback can never see a null timer.
+        _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+        _debounce.Tick += (_, _) =>
+        {
+            _debounce.Stop();
+            Apply();
+        };
+
+        _safetyNet = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _safetyNet.Tick += (_, _) => Apply();
+
         _proc = (_, _, _, objectId, _, _, _) =>
         {
             if (objectId != 0) return;
@@ -110,18 +122,6 @@ internal sealed class ShowDesktopWatcher : IDisposable
             _debounce.Stop();
             _debounce.Start();
         };
-
-        // Show Desktop animates windows away, so evaluate once it settles.
-        _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
-        _debounce.Tick += (_, _) =>
-        {
-            _debounce.Stop();
-            Apply();
-        };
-
-        // Catches window closes and anything the events miss.
-        _safetyNet = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-        _safetyNet.Tick += (_, _) => Apply();
     }
 
     public void Start()
@@ -169,7 +169,6 @@ internal sealed class ShowDesktopWatcher : IDisposable
     {
         IntPtr self = new WindowInteropHelper(_window).Handle;
         bool appVisible = false;
-        var name = new System.Text.StringBuilder(128);
 
         EnumWindows((window, _) =>
         {
@@ -190,12 +189,11 @@ internal sealed class ShowDesktopWatcher : IDisposable
             int style = GetWindowLong(window, GwlExStyle);
             if ((style & WsExToolWindow) != 0 && (style & WsExAppWindow) == 0) return true;
 
-            name.Clear();
-            GetClassName(window, name, name.Capacity);
-            string className = name.ToString();
+            _name.Clear();
+            GetClassName(window, _name, _name.Capacity);
+            string className = _name.ToString();
 
             if (className is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
-
             // The UWP text-input host is resident but never shown to the user.
             if (className == "Windows.UI.Core.CoreWindow") return true;
 

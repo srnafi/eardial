@@ -66,9 +66,16 @@ public static class EndpointAudio
             {
                 device = new MMDeviceEnumerator().GetDevice(id);
                 device.AudioEndpointVolume.OnVolumeNotification += data =>
-                    dispatcher.BeginInvoke(() => EndpointChanged?.Invoke(id));
-                // NAudio has no separate mute callback; mute arrives inside
-                // VolumeNotification, so the timer below covers mute-only flips.
+                {
+                    try
+                    {
+                        dispatcher.BeginInvoke(() => EndpointChanged?.Invoke(id));
+                    }
+                    catch
+                    {
+                        // Window closed or app shutting down; nothing to update.
+                    }
+                };
                 _hooks[id] = device;
             }
             return Read(device);
@@ -138,12 +145,6 @@ public static class EndpointAudio
 
         for (int i = 0; i < channels; i++)
             volume.Channels[i].VolumeLevelScalar = Math.Clamp(levels[i] * ratio, 0f, 1f);
-    }
-
-    public static void SetMute(string id, bool muted)
-    {
-        using var device = Open(id);
-        device.AudioEndpointVolume.Mute = muted;
     }
 
     public static EndpointState? Reload(string id)
