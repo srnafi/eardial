@@ -184,22 +184,18 @@ public partial class MainWindow : Window
     // audible instead of being capped by the master level.
     private void RaiseMaster(string id)
     {
-        var state = EndpointAudio.Reload(id);
-        if (state is null || state.Channels == 0) return;
+        if (_masterRow is not { } master || _channelRows.Count == 0) return;
 
-        float highest = state.Levels.Max();
-        if (highest <= state.Master) return;
+        float highest = _channelRows.Max(row => (float)row.Slider.Value / 100);
+        float current = (float)master.Slider.Value / 100;
+        if (highest <= current) return;
 
         EndpointAudio.SetMaster(id, highest);
-        _current = EndpointAudio.Reload(id) ?? state;
 
-        if (_masterRow is { } row)
-        {
-            _loading = true;
-            row.Slider.Value = highest * 100;
-            row.Readout.Text = highest.ToString("P0");
-            _loading = false;
-        }
+        _loading = true;
+        master.Slider.Value = highest * 100;
+        master.Readout.Text = highest.ToString("P0");
+        _loading = false;
     }
 
     private (Slider Slider, TextBlock Readout) AddRow(string label, float value, bool enabled, Action<float> apply, Action commit)
