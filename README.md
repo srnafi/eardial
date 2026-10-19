@@ -15,9 +15,9 @@ UI is written.
 - [x] Enumerate render endpoints and read per-channel volume
 - [x] Write per-channel volume, confirmed audible on a Bluetooth headset
 - [ ] Detect devices that accept the write and ignore it
-- [ ] Widget window
-- [ ] Pin widget to the desktop layer
-- [ ] Remember settings per device
+- [x] Widget window
+- [x] Pin widget to the desktop layer
+- [ ] Remember window position and selected device
 - [ ] Single-file release build
 
 ## How it works
