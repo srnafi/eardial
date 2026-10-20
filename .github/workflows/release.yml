@@ -74,9 +74,18 @@ jobs:
       - name: Checksum
         shell: pwsh
         run: |
-          $hash = (Get-FileHash .\publish\LeftRightAudioBalancer.exe -Algorithm SHA256).Hash.ToLower()
-          "$hash  LeftRightAudioBalancer.exe" | Out-File -Encoding ascii publish\LeftRightAudioBalancer.exe.sha256
-          Get-Content publish\LeftRightAudioBalancer.exe.sha256
+          $exe = Join-Path $PWD 'publish/LeftRightAudioBalancer.exe'
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+
+          # LF, not CRLF. sha256sum -c on Linux, macOS and WSL treats a trailing
+          # CR as part of the filename and fails with "No such file".
+          $line = "$hash  LeftRightAudioBalancer.exe`n"
+          [System.IO.File]::WriteAllText(
+            (Join-Path $PWD 'publish/LeftRightAudioBalancer.exe.sha256'),
+            $line,
+            [System.Text.Encoding]::ASCII)
+
+          Get-Content publish/LeftRightAudioBalancer.exe.sha256
 
       - name: Create release
         shell: pwsh
