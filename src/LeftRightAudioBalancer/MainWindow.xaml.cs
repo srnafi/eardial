@@ -563,6 +563,13 @@ public partial class MainWindow : Window
         RefreshFixState();
     }
 
+    // Diagnostic entry point for --opencombo: opens the device list without a
+    // mouse, so the chevron can be captured in its open state.
+    internal void OpenDeviceList()
+    {
+        DeviceBox.IsDropDownOpen = true;
+    }
+
     // Diagnostic entry point for --chip: forces the warning chip so its layout
     // can be measured on a machine with no mono endpoint attached.
     internal void ShowChipForTest()

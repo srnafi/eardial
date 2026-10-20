@@ -54,6 +54,10 @@ public partial class App : Application
         if (e.Args.Contains("--drawer")) window.OpenDrawer();
         if (e.Args.Contains("--chip")) window.ShowChipForTest();
 
+        // Diagnostic: open the device list so the chevron's flipped state can
+        // be captured. Layout and the popup are the only things under test.
+        if (e.Args.Contains("--opencombo")) window.OpenDeviceList();
+
         int select = Array.IndexOf(e.Args, "--select");
         if (select >= 0 && select + 1 < e.Args.Length && int.TryParse(e.Args[select + 1], out int pick))
             window.SelectDevice(pick);
