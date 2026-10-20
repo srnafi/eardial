@@ -24,6 +24,13 @@ public partial class MainWindow : Window
 
     private readonly ShowDesktopWatcher _watcher;
 
+    // Transport never changes for an endpoint, so it is asked once.
+    private readonly Dictionary<string, bool> _bluetooth = new();
+
+    // Smoothed peak level per ear row, 0..1. Rises instantly, falls gradually.
+    private readonly double[] _meter = new double[16];
+    private readonly System.Windows.Threading.DispatcherTimer _peakTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+
     public MainWindow()
     {
         _settings = SettingsStore.Load();
@@ -54,6 +61,9 @@ public partial class MainWindow : Window
         // handler attached there would multiply with each rebind.
         _poll.Tick += (_, _) => PollExternal();
         _poll.Start();
+
+        _peakTimer.Tick += (_, _) => PollPeaks();
+        _peakTimer.Start();
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -149,7 +159,10 @@ public partial class MainWindow : Window
             MasterSlider.IsEnabled = false;
             MasterSlider.Value = 0;
             MasterReadout.Text = "";
+            BigReadout.Text = "\u2013";
             LinkOffset.Text = "";
+            HeroHint.Visibility = Visibility.Hidden;
+            UpdateDeviceHeader();
             ShowChip(ChipKind.None, null, false);
             _loading = false;
             return;
@@ -194,7 +207,7 @@ public partial class MainWindow : Window
 
         _loading = true;
         MasterSlider.Value = _current.Master * 100;
-        MasterReadout.Text = Number(_current.Master * 100);
+        SetMasterReadout(_current.Master * 100);
         _loading = false;
 
         UpdateOffset();
@@ -285,7 +298,7 @@ public partial class MainWindow : Window
         if (Math.Abs(MasterSlider.Value - state.Master * 100) > 0.5)
         {
             MasterSlider.Value = state.Master * 100;
-            MasterReadout.Text = Number(state.Master * 100);
+            SetMasterReadout(state.Master * 100);
         }
 
         _loading = false;
@@ -304,7 +317,7 @@ public partial class MainWindow : Window
 
         _loading = true;
         MasterSlider.Value = highest;
-        MasterReadout.Text = Number(highest);
+        SetMasterReadout(highest);
         _loading = false;
 
         EndpointAudio.SetMaster(_current.Id, (float)(highest / 100));
@@ -312,28 +325,40 @@ public partial class MainWindow : Window
 
     private void AddEarRow(string label, float value, int index, bool enabled = true)
     {
-        var grid = new Grid { Height = 26 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(15) });
+        var grid = new Grid { Height = 36, Margin = new Thickness(0, index > 0 ? 2 : 0, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(26) });
         grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
 
-        var name = new TextBlock
+        // L / R badge: a small rounded tile instead of bare text.
+        var badge = new Border
         {
-            Text = label,
-            FontSize = 11,
-            FontWeight = FontWeights.SemiBold,
+            Width = 26,
+            Height = 26,
+            CornerRadius = new CornerRadius(8),
+            Background = (Brush)FindResource("ChipFill"),
+            BorderBrush = (Brush)FindResource("ChipBorder"),
+            BorderThickness = new Thickness(1),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Foreground = (Brush)FindResource("DimText"),
+            Child = new TextBlock
+            {
+                Text = label,
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = (Brush)FindResource("SecondaryText"),
+            },
         };
 
         var readout = new TextBlock
         {
             Text = Percent(value * 100),
-            FontSize = 11.5,
+            FontSize = 12,
             TextAlignment = TextAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = (Brush)FindResource("DimText"),
+            Foreground = (Brush)FindResource("SecondaryText"),
         };
 
         Typography.SetNumeralAlignment(readout, FontNumeralAlignment.Tabular);
@@ -344,6 +369,7 @@ public partial class MainWindow : Window
             Maximum = 100,
             Value = value * 100,
             IsEnabled = enabled,
+            Margin = new Thickness(10, 0, 10, 0),
             VerticalAlignment = VerticalAlignment.Center,
             Style = (Style)FindResource("WidgetSlider"),
         };
@@ -362,11 +388,11 @@ public partial class MainWindow : Window
 
         Grid.SetColumn(slider, 1);
         Grid.SetColumn(readout, 2);
-        grid.Children.Add(name);
+        grid.Children.Add(badge);
         grid.Children.Add(slider);
         grid.Children.Add(readout);
 
-        if (!enabled) grid.Opacity = 0.34;
+        if (!enabled) grid.Opacity = 0.35;
 
         EarHost.Children.Add(grid);
         _earRows.Add((slider, readout));
@@ -403,32 +429,44 @@ public partial class MainWindow : Window
     }
 
     // Signed difference between the ears, always described from the right.
+    // Feeds both the Linked pill ("R -12") and the hero hint ("R is 12 quieter").
     private void UpdateOffset()
     {
-        if (!_linked || _earRows.Count != 2)
+        bool stereo = _earRows.Count == 2 && _current is { CanSplit: true };
+
+        HeroHint.Visibility = stereo ? Visibility.Visible : Visibility.Hidden;
+
+        if (!stereo)
         {
             LinkOffset.Text = "";
+            BalanceText.Text = "";
             return;
         }
 
         double diff = _earRows[1].Slider.Value - _earRows[0].Slider.Value;
+        bool even = Math.Abs(diff) < 0.5;
+        string amount = Number(Math.Abs(diff));
 
-        if (Math.Abs(diff) < 0.5)
+        BalanceText.Text = even
+            ? "Centred"
+            : diff < 0 ? $"R is {amount} quieter" : $"L is {amount} quieter";
+
+        if (!_linked)
         {
             LinkOffset.Text = "";
             return;
         }
 
-        LinkOffset.Text = diff < 0
-            ? $"R \u2212{Number(Math.Abs(diff))}"
-            : $"R +{Number(diff)}";
+        LinkOffset.Text = even
+            ? "in sync"
+            : diff < 0 ? $"R \u2212{amount}" : $"R +{amount}";
     }
 
     private void Master_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_loading || _current is null) return;
 
-        MasterReadout.Text = Number(e.NewValue);
+        SetMasterReadout(e.NewValue);
         EndpointAudio.SetMasterScaled(_current.Id, (float)(e.NewValue / 100));
 
         // Scaling master rescales the channels, so the ears must follow live.
@@ -477,23 +515,17 @@ public partial class MainWindow : Window
 
     private void RefreshChip()
     {
+        UpdateDeviceHeader();
+
         if (_forceChip) return;
 
-        if (_current is null)
+        if (_current is null || _current.CanSplit)
         {
             ShowChip(ChipKind.None, null, false);
             return;
         }
 
-        if (_current.CanSplit)
-        {
-            ShowChip(ChipKind.None, null, false);
-            return;
-        }
-
-        bool bluetooth = EndpointAudio.IsBluetooth(_current.Id);
-
-        if (!bluetooth)
+        if (!IsBluetooth(_current.Id))
         {
             ShowChip(ChipKind.Info, "Single channel \u2014 no left/right to split", false);
             return;
@@ -503,6 +535,41 @@ public partial class MainWindow : Window
             ShowChip(ChipKind.Good, "Fix applied \u2014 reconnect the headset", false);
         else
             ShowChip(ChipKind.Warn, "Headset reports one channel", true);
+    }
+
+    private bool IsBluetooth(string id)
+    {
+        if (!_bluetooth.TryGetValue(id, out bool value))
+        {
+            value = EndpointAudio.IsBluetooth(id);
+            _bluetooth[id] = value;
+        }
+
+        return value;
+    }
+
+    // Subtitle and glyph under the device name.
+    private void UpdateDeviceHeader()
+    {
+        if (_current is null)
+        {
+            DeviceUi.SetIsBluetooth(DeviceBox, false);
+            DeviceUi.SetSubtitle(DeviceBox, "No output devices");
+            return;
+        }
+
+        bool bluetooth = IsBluetooth(_current.Id);
+
+        string subtitle = bluetooth
+            ? AvrcpFix.IsApplied ? "Bluetooth \u00B7 Local volume"
+              : _current.CanSplit ? "Bluetooth \u00B7 Stereo"
+              : "Bluetooth \u00B7 Reports 1 channel"
+            : !_current.CanSplit ? "Output \u00B7 Single channel"
+              : _current.Channels == 2 ? "Output \u00B7 Stereo"
+              : $"Output \u00B7 {_current.Channels} channels";
+
+        DeviceUi.SetIsBluetooth(DeviceBox, bluetooth);
+        DeviceUi.SetSubtitle(DeviceBox, subtitle);
     }
 
     private void ShowChip(ChipKind kind, string? text, bool fixButton)
@@ -516,17 +583,26 @@ public partial class MainWindow : Window
         Chip.Visibility = Visibility.Visible;
         ChipText.Text = text;
 
-        (Color fill, Color stroke, Color textColor) = kind switch
-        {
-            ChipKind.Warn => (Color.FromArgb(0x12, 0xFF, 0xB0, 0x20), Color.FromArgb(0x33, 0xFF, 0xB0, 0x20), Color.FromRgb(0xEF, 0xC1, 0x78)),
-            ChipKind.Good => (Color.FromArgb(0x14, 0x3F, 0xB9, 0x50), Color.FromArgb(0x33, 0x3F, 0xB9, 0x50), Color.FromRgb(0x7F, 0xD4, 0x8B)),
-            _ => (Color.FromArgb(0x14, 0x6A, 0xA9, 0xFF), Color.FromArgb(0x2E, 0x6A, 0xA9, 0xFF), Color.FromRgb(0x9C, 0xC6, 0xFF)),
-        };
+        // Amber for the symptom; blue for everything informational or resolved.
+        (Color fill, Color stroke, Color textColor) = kind == ChipKind.Warn
+            ? (Color.FromArgb(0x1A, 0xFF, 0xB5, 0x47), Color.FromArgb(0x38, 0xFF, 0xB5, 0x47), Color.FromRgb(0xFF, 0xB5, 0x47))
+            : (Color.FromArgb(0x1A, 0x5A, 0xA2, 0xFF), Color.FromArgb(0x3D, 0x5A, 0xA2, 0xFF), Color.FromRgb(0x5A, 0xA2, 0xFF));
 
         Chip.Background = new SolidColorBrush(fill);
         Chip.BorderBrush = new SolidColorBrush(stroke);
-        ChipText.Foreground = new SolidColorBrush(textColor);
-        ChipGlyph.Stroke = new SolidColorBrush(textColor);
+
+        var brush = new SolidColorBrush(textColor);
+        ChipText.Foreground = brush;
+        ChipGlyph.Stroke = brush;
+        ChipBang.Stroke = brush;
+        ChipCheck.Stroke = brush;
+        ChipInfoRing.Stroke = brush;
+        ChipInfoDot.Stroke = brush;
+
+        // Warn: triangle. Good: check. Info: circled i.
+        ChipGlyph.Visibility = ChipBang.Visibility = kind == ChipKind.Warn ? Visibility.Visible : Visibility.Collapsed;
+        ChipCheck.Visibility = kind == ChipKind.Good ? Visibility.Visible : Visibility.Collapsed;
+        ChipInfoRing.Visibility = ChipInfoDot.Visibility = kind == ChipKind.Info ? Visibility.Visible : Visibility.Collapsed;
 
         ChipAction.Visibility = fixButton ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -702,7 +778,7 @@ public partial class MainWindow : Window
         bool applied = AvrcpFix.IsApplied;
 
         FixPill.Style = (Style)FindResource(applied ? "PillApplied" : "Pill");
-        FixPill.Content = applied ? "On" : "\u26E8  Apply";
+        FixPill.Content = applied ? "\u2713  On" : "\u26E8  Apply";
         FixPill.IsEnabled = !applied;
 
         FixRevert.Visibility = applied ? Visibility.Visible : Visibility.Collapsed;
@@ -805,6 +881,38 @@ public partial class MainWindow : Window
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
+
+    // The master value shows twice: the small readout by the slider and the
+    // big number at the top of the card.
+    private void SetMasterReadout(double value)
+    {
+        string text = Number(value);
+        MasterReadout.Text = text;
+        BigReadout.Text = text;
+    }
+
+    // Live level meter: the lighter bar inside each ear's fill. Reads the
+    // endpoint's real peak values; a mono endpoint has no ear rows to light.
+    private void PollPeaks()
+    {
+        if (_earRows.Count == 0) return;
+
+        float[]? peaks = _current is { CanSplit: true } device
+            ? EndpointAudio.Peaks(device.Id)
+            : null;
+
+        for (int i = 0; i < _earRows.Count && i < _meter.Length; i++)
+        {
+            double target = peaks is not null && i < peaks.Length
+                ? Math.Min(1, peaks[i] * 1.5)
+                : 0;
+
+            _meter[i] = Math.Max(target, _meter[i] * 0.82);
+            if (_meter[i] < 0.01) _meter[i] = 0;
+
+            DeviceUi.SetMeter(_earRows[i].Slider, _meter[i]);
+        }
+    }
 
     private static string Percent(double value) => $"{Number(value)}%";
 

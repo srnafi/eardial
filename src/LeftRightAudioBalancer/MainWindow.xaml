@@ -14,17 +14,16 @@
         Topmost="False">
 
     <Border x:Name="Card"
-            CornerRadius="14"
+            CornerRadius="22"
             Background="{StaticResource CardBackground}"
             BorderBrush="{StaticResource CardBorder}"
             BorderThickness="1"
-            Padding="12,10,12,12"
+            Padding="14,12,14,12"
             MouseLeftButtonDown="Card_MouseLeftButtonDown">
 
-        <!-- The red dot is gone. Quitting is rare enough to live one click deeper. -->
         <Border.ContextMenu>
-            <ContextMenu Background="#22252C"
-                         BorderBrush="#33FFFFFF"
+            <ContextMenu Background="{StaticResource PopupBackground}"
+                         BorderBrush="#1FFFFFFF"
                          BorderThickness="1"
                          Padding="4">
                 <MenuItem Header="Quit LeftRightAudioBalancer" Click="Exit_Click" />
@@ -34,7 +33,7 @@
         <StackPanel>
 
             <!-- ===================== header ===================== -->
-            <Grid Height="26">
+            <Grid Height="40">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -43,19 +42,20 @@
 
                 <ComboBox x:Name="DeviceBox"
                           Grid.Column="0"
+                          Margin="-5,0,0,0"
                           Style="{StaticResource DeviceSelector}"
                           SelectionChanged="DeviceBox_SelectionChanged" />
 
                 <Button x:Name="PinButton"
                         Grid.Column="1"
                         Style="{StaticResource IconButton}"
-                        Margin="1,0,0,0"
+                        Margin="6,0,0,0"
                         Tag="off"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="Always on top"
                         Click="Pin_Click">
-                    <Viewbox Width="13" Height="13">
+                    <Viewbox Width="14" Height="14">
                         <Canvas Width="24" Height="24">
                             <Path Data="M12,16.5 L12,22"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -73,13 +73,14 @@
                 <Button x:Name="GearButton"
                         Grid.Column="2"
                         Style="{StaticResource IconButton}"
+                        Margin="2,0,0,0"
                         Tag="off"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
                         ToolTip="Settings"
                         Click="Gear_Click">
-                    <!-- Sliders, not a gear: a gear turns to mush at 13 px. -->
-                    <Viewbox Width="13" Height="13">
+                    <!-- Sliders, not a gear: a gear turns to mush at 14 px. -->
+                    <Viewbox Width="14" Height="14">
                         <Canvas Width="24" Height="24">
                             <Path Data="M3,7 L21,7 M3,12 L21,12 M3,17 L21,17"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -87,15 +88,15 @@
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round" />
                             <Ellipse Canvas.Left="6" Canvas.Top="4.6" Width="4.8" Height="4.8"
-                                     Fill="#1B1D23"
+                                     Fill="#12151B"
                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                      StrokeThickness="1.8" />
                             <Ellipse Canvas.Left="13.2" Canvas.Top="9.6" Width="4.8" Height="4.8"
-                                     Fill="#1B1D23"
+                                     Fill="#12151B"
                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                      StrokeThickness="1.8" />
                             <Ellipse Canvas.Left="8.6" Canvas.Top="14.6" Width="4.8" Height="4.8"
-                                     Fill="#1B1D23"
+                                     Fill="#12151B"
                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                      StrokeThickness="1.8" />
                         </Canvas>
@@ -103,15 +104,15 @@
                 </Button>
             </Grid>
 
-            <!-- ===================== symptom chip ===================== -->
+            <!-- ===================== symptom banner ===================== -->
             <Border x:Name="Chip"
                     Visibility="Collapsed"
-                    Margin="0,7,0,0"
-                    CornerRadius="8"
-                    Background="#FFB02012"
-                    BorderBrush="#FFB02033"
+                    Margin="0,10,0,0"
+                    CornerRadius="12"
+                    Background="#1AFFB547"
+                    BorderBrush="#38FFB547"
                     BorderThickness="1"
-                    Padding="8,5,7,5">
+                    Padding="10,8,8,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -119,9 +120,11 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Viewbox Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <Viewbox Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,8,0">
                         <Canvas Width="24" Height="24">
-                            <Path Data="M12,8.5 L12,13.5 M12,17.4 L12,17.6"
+                            <!-- warning triangle -->
+                            <Path x:Name="ChipBang"
+                                  Data="M12,8.5 L12,13.5 M12,17.4 L12,17.6"
                                   Stroke="{StaticResource Warn}"
                                   StrokeThickness="2.1"
                                   StrokeStartLineCap="Round"
@@ -131,12 +134,34 @@
                                   Stroke="{StaticResource Warn}"
                                   StrokeThickness="1.9"
                                   StrokeLineJoin="Round" />
+                            <!-- applied -->
+                            <Path x:Name="ChipCheck"
+                                  Visibility="Collapsed"
+                                  Data="M20,6 L9,17 L4,12"
+                                  Stroke="{StaticResource Accent}"
+                                  StrokeThickness="2.2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                            <!-- info -->
+                            <Ellipse x:Name="ChipInfoRing"
+                                     Visibility="Collapsed"
+                                     Canvas.Left="3" Canvas.Top="3" Width="18" Height="18"
+                                     Stroke="{StaticResource Accent}"
+                                     StrokeThickness="1.9" />
+                            <Path x:Name="ChipInfoDot"
+                                  Visibility="Collapsed"
+                                  Data="M12,16.5 L12,11 M12,7.9 L12,8.1"
+                                  Stroke="{StaticResource Accent}"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" />
                         </Canvas>
                     </Viewbox>
 
                     <TextBlock x:Name="ChipText"
                                Grid.Column="1"
-                               FontSize="10.5"
+                               FontSize="11.5"
                                Foreground="{StaticResource Warn}"
                                TextWrapping="Wrap"
                                VerticalAlignment="Center" />
@@ -145,34 +170,69 @@
                             Grid.Column="2"
                             Style="{StaticResource ChipAction}"
                             Content="Fix"
-                            Margin="6,0,0,0"
+                            Margin="8,0,0,0"
                             Visibility="Collapsed"
                             Click="ChipFix_Click" />
                 </Grid>
             </Border>
 
-            <!-- ===================== per-ear ===================== -->
-            <StackPanel x:Name="EarHost" Margin="0,7,0,0" />
+            <!-- ===================== hero readout ===================== -->
+            <Grid Margin="2,14,2,4">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Left">
+                    <TextBlock x:Name="BigReadout"
+                               Text="0"
+                               FontSize="44"
+                               FontWeight="Bold"
+                               LineHeight="42"
+                               LineStackingStrategy="BlockLineHeight"
+                               Foreground="{StaticResource BigNumber}" />
+                    <TextBlock Text="%"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource DimText}"
+                               Margin="3,0,0,5"
+                               VerticalAlignment="Bottom" />
+                </StackPanel>
 
-            <Border Height="1" Background="{StaticResource Hairline}" Margin="0,8,0,7" />
+                <StackPanel x:Name="HeroHint" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                    <TextBlock Text="Balance"
+                               FontSize="10.5"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource SecondaryText}"
+                               TextAlignment="Right" />
+                    <TextBlock x:Name="BalanceText"
+                               FontSize="10.5"
+                               Foreground="{StaticResource DimText}"
+                               TextAlignment="Right" />
+                </StackPanel>
+            </Grid>
+
+            <!-- ===================== per-ear ===================== -->
+            <StackPanel x:Name="EarHost" Margin="0,8,0,0" />
+
+            <Border Height="1" Background="{StaticResource Hairline}" Margin="0,6,0,4" />
 
             <!-- ===================== master ===================== -->
-            <Grid Height="20">
+            <Grid Height="30">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="15" />
+                    <ColumnDefinition Width="26" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="36" />
+                    <ColumnDefinition Width="38" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="VOL"
-                           FontSize="9"
-                           FontWeight="SemiBold"
-                           Foreground="{StaticResource FaintText}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center" />
+                <Viewbox Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Canvas Width="24" Height="24">
+                        <Path Data="M11,5 L6,9 L2,9 L2,15 L6,15 L11,19 Z"
+                              Stroke="{StaticResource DimText}" StrokeThickness="1.8" StrokeLineJoin="Round" />
+                        <Path Data="M15.5,8.5 A5,5 0 0 1 15.5,15.5"
+                              Stroke="{StaticResource DimText}" StrokeThickness="1.8"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                    </Canvas>
+                </Viewbox>
 
                 <Slider x:Name="MasterSlider"
                         Grid.Column="1"
+                        Margin="10,0"
                         Style="{StaticResource MasterSlider}"
                         Minimum="0"
                         Maximum="100"
@@ -181,21 +241,21 @@
 
                 <TextBlock x:Name="MasterReadout"
                            Grid.Column="2"
-                           FontSize="10.5"
-                           Foreground="{StaticResource DimText}"
+                           FontSize="12"
+                           Foreground="{StaticResource SecondaryText}"
                            TextAlignment="Right"
                            VerticalAlignment="Center" />
             </Grid>
 
             <!-- ===================== footer ===================== -->
-            <Grid Height="22" Margin="0,7,0,0">
+            <Grid Height="28" Margin="0,8,0,0">
                 <ToggleButton x:Name="LinkToggle"
                               Style="{StaticResource FooterToggle}"
                               HorizontalAlignment="Left"
                               IsChecked="True"
                               Click="Link_Click">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="12" Height="12" Margin="0,0,5,0">
+                        <Viewbox Width="13" Height="13" Margin="0,0,6,0">
                             <Canvas Width="24" Height="24">
                                 <Path Data="M10,13 A5,5 0 0 0 17,13 L19,11 A5,5 0 0 0 12,4 L11,5"
                                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
@@ -211,14 +271,14 @@
                         </Viewbox>
 
                         <TextBlock Text="Linked"
-                                   FontSize="11"
+                                   FontSize="11.5"
                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
                                    VerticalAlignment="Center" />
 
                         <TextBlock x:Name="LinkOffset"
-                                   FontSize="11"
-                                   Foreground="{StaticResource FaintText}"
-                                   Margin="5,0,0,0"
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource DimText}"
+                                   Margin="6,0,0,0"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </ToggleButton>
@@ -231,8 +291,8 @@
             </Grid>
 
             <!-- ===================== settings drawer ===================== -->
-            <StackPanel x:Name="Drawer" Visibility="Collapsed" Margin="0,9,0,0">
-                <Border Height="1" Background="{StaticResource Hairline}" Margin="0,0,0,9" />
+            <StackPanel x:Name="Drawer" Visibility="Collapsed" Margin="0,10,0,0">
+                <Border Height="1" Background="{StaticResource Hairline}" Margin="0,0,0,10" />
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -241,7 +301,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="Start with Windows" FontSize="12" Foreground="#DFE5EC" />
+                        <TextBlock Text="Start with Windows" FontSize="12" FontWeight="Medium" />
                         <TextBlock Text="Adds LeftRightAudioBalancer to the Startup folder."
                                    FontSize="10.5"
                                    Foreground="{StaticResource DimText}"
@@ -253,19 +313,19 @@
                                   Grid.Column="1"
                                   Style="{StaticResource Switch}"
                                   VerticalAlignment="Top"
-                                  Margin="10,1,0,0"
+                                  Margin="12,1,0,0"
                                   Click="Boot_Click" />
                 </Grid>
 
-                <Grid Margin="0,9,0,0">
+                <Grid Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="Bluetooth per-ear fix" FontSize="12" Foreground="#DFE5EC" />
-                        <TextBlock Text="Windows hands the volume to the headset, so L/R never splits. This turns that off and does volume locally. Needs admin, then a reconnect."
+                        <TextBlock Text="Bluetooth per-ear fix" FontSize="12" FontWeight="Medium" />
+                        <TextBlock Text="Windows hands volume to the headset, so L/R never splits. This turns that off and does volume locally. Needs admin, then a reconnect."
                                    FontSize="10.5"
                                    Foreground="{StaticResource DimText}"
                                    TextWrapping="Wrap"
@@ -278,7 +338,7 @@
                                    Visibility="Collapsed" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Margin="10,1,0,0" HorizontalAlignment="Right">
+                    <StackPanel Grid.Column="1" Margin="12,1,0,0" HorizontalAlignment="Right">
                         <Button x:Name="FixPill"
                                 Style="{StaticResource Pill}"
                                 Content="Apply"
@@ -286,12 +346,41 @@
                         <Button x:Name="FixRevert"
                                 Style="{StaticResource FooterButton}"
                                 Content="Revert"
+                                Height="22"
+                                FontSize="11"
                                 HorizontalAlignment="Right"
-                                Margin="0,2,0,0"
+                                Margin="0,4,0,0"
                                 Visibility="Collapsed"
                                 Click="FixRevert_Click" />
                     </StackPanel>
                 </Grid>
+
+                <Border Height="1" Background="{StaticResource Hairline}" Margin="0,12,0,12" />
+
+                <!-- Quit: the visible way to close the app. -->
+                <Button x:Name="QuitButton"
+                        Style="{StaticResource QuitButton}"
+                        Click="Exit_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <Viewbox Width="13" Height="13" Margin="0,0,7,0">
+                            <Canvas Width="24" Height="24">
+                                <Path Data="M12,3 L12,12"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                                <Path Data="M6.4,6.6 A9,9 0 1 0 17.6,6.6"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round" />
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock Text="Quit"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
         </StackPanel>

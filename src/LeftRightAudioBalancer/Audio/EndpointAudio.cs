@@ -193,6 +193,32 @@ public static class EndpointAudio
             volume.Channels[i].VolumeLevelScalar = Math.Clamp(levels[i] * ratio, 0f, 1f);
     }
 
+    // Instantaneous peak level per channel, 0..1, for the live meter. Uses the
+    // device already held by Hook so the 50 ms poll does not reopen the endpoint.
+    public static float[]? Peaks(string id)
+    {
+        try
+        {
+            lock (_hookLock)
+            {
+                if (!_hooks.TryGetValue(id, out var device)) return null;
+
+                var meter = device.AudioMeterInformation;
+                int count = meter.PeakValues.Count;
+                var result = new float[count];
+
+                for (int i = 0; i < count; i++)
+                    result[i] = meter.PeakValues[i];
+
+                return result;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public static EndpointState? Reload(string id)
     {
         try
@@ -234,4 +260,4 @@ public static class EndpointAudio
             // Device disappeared between drag and release.
         }
     }
-}
+}
