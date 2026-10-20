@@ -101,28 +101,6 @@ That writes `publish/LeftRightAudioBalancer.exe` at roughly 73 MB. Drop
 `--self-contained` for a much smaller file, but the machine then needs the
 .NET 10 desktop runtime.
 
-## Releasing
-
-Two workflows run on GitHub Actions.
-
-`ci.yml` runs on every push to `main` and on pull requests. It restores,
-builds with warnings as errors, publishes the single-file exe, then runs that
-exe and checks it can still resolve its own path. Warnings are errors only in
-CI: the single-file publish breaks `Assembly.Location`, and that surfaced as a
-warning rather than a failure, so the setting is there to catch the next one.
-
-`release.yml` runs when you push a tag:
-
-```
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-It stamps the version from the tag, publishes, smoke tests the exe, writes a
-SHA256 file, and creates a GitHub Release with both attached.
-
-The exe is unsigned. Windows will warn on first run until it is signed with a
-code-signing certificate.
 
 ## How it works
 
