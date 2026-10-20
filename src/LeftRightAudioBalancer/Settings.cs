@@ -28,6 +28,10 @@ internal static class SettingsStore
         Environment.GetFolderPath(Environment.SpecialFolder.Startup),
         "LeftRightAudioBalancer.lnk");
 
+    // Exposed for the --shortcut-check diagnostic, which reports where the
+    // shortcut landed and what it points at.
+    internal static string ShortcutFile => ShortcutPath;
+
     public static AppSettings Load()
     {
         try
@@ -68,7 +72,11 @@ internal static class SettingsStore
 
     private static void CreateShortcut()
     {
-        string? exe = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        // ProcessPath is the running executable, which stays valid in the
+        // single-file build. Assembly.Location returns an empty string there,
+        // because the assembly is embedded rather than loaded from disk, and
+        // the shortcut would silently never be created.
+        string? exe = Environment.ProcessPath;
         if (string.IsNullOrEmpty(exe)) return;
 
         Directory.CreateDirectory(Path.GetDirectoryName(ShortcutPath)!);

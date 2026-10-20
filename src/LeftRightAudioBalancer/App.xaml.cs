@@ -36,6 +36,17 @@ public partial class App : Application
             return;
         }
 
+        // Diagnostic: create the startup shortcut, report what it points at,
+        // then remove it. Verifies the single-file path resolution, which a
+        // normal build cannot reproduce.
+        int shortcut = Array.IndexOf(e.Args, "--shortcut-check");
+        if (shortcut >= 0 && shortcut + 1 < e.Args.Length)
+        {
+            File.WriteAllText(e.Args[shortcut + 1], ShortcutCheck());
+            Shutdown();
+            return;
+        }
+
         var window = new MainWindow();
         window.Show();
 
@@ -135,6 +146,51 @@ public partial class App : Application
 
         using var stream = File.Create(path);
         encoder.Save(stream);
+    }
+
+    // Creates the startup shortcut, reports what it points at, then removes it.
+    // Run against the published single-file exe, where Assembly.Location is
+    // empty and the old code failed silently.
+    private static string ShortcutCheck()
+    {
+        var builder = new StringBuilder();
+
+        builder.AppendLine($"process      {Environment.ProcessPath}");
+        builder.AppendLine($"base dir     {AppContext.BaseDirectory}");
+
+        SettingsStore.SetStartOnBoot(true);
+
+        string path = SettingsStore.ShortcutFile;
+        builder.AppendLine($"shortcut     {path}");
+        builder.AppendLine($"created      {File.Exists(path)}");
+
+        if (File.Exists(path))
+        {
+            var type = Type.GetTypeFromCLSID(new Guid("72C24DD5-D70A-438B-8A42-98424B88AFB8"))!;
+            dynamic shell = Activator.CreateInstance(type)!;
+            try
+            {
+                var link = shell.CreateShortcut(path);
+                string target = link.TargetPath;
+
+                builder.AppendLine($"target       {target}");
+                builder.AppendLine($"target exists {File.Exists(target)}");
+                builder.AppendLine($"verdict      {(File.Exists(target) ? "PASS" : "FAIL")}");
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(shell);
+            }
+
+            SettingsStore.SetStartOnBoot(false);
+            builder.AppendLine($"cleaned up   {!File.Exists(path)}");
+        }
+        else
+        {
+            builder.AppendLine("verdict      FAIL");
+        }
+
+        return builder.ToString();
     }
 
     private static string Describe(Window window)

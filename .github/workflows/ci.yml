@@ -1,0 +1,69 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # WPF and Core Audio are Windows-only, so the build has to run there too.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      # Warnings fail the build here but not locally. The single-file publish
+      # bug this project had (Assembly.Location returning empty) was a warning
+      # nobody read, and it broke a feature only in the shipped exe.
+      - name: Build
+        run: dotnet build -c Release --no-restore -warnaserror
+
+      # Publishing is the step that surfaces single-file problems, so it runs
+      # on every push rather than only on release.
+      - name: Publish single file
+        run: >
+          dotnet publish src/LeftRightAudioBalancer
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish
+
+      # The published exe is a different animal from the build output: the
+      # assembly is embedded, so path lookups can fail where they worked in a
+      # normal build. This runs the real exe and checks it can still find
+      # itself well enough to write the startup shortcut.
+      #
+      # Start-Process -Wait is required: PowerShell does not wait for a GUI app,
+      # and without it the report file is read before the app has written it.
+      - name: Smoke test the published exe
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:RUNNER_TEMP 'shortcut.txt'
+          $exe = Join-Path $PWD 'publish/LeftRightAudioBalancer.exe'
+
+          $process = Start-Process -FilePath $exe -ArgumentList '--shortcut-check', $report -Wait -PassThru
+          Write-Host "exit code: $($process.ExitCode)"
+
+          if (-not (Test-Path $report)) {
+            throw 'The smoke test produced no report.'
+          }
+
+          Get-Content $report
+
+          if (-not (Select-String -Path $report -Pattern 'verdict\s+PASS' -Quiet)) {
+            throw 'The published exe could not resolve its own path.'
+          }
+
+          Write-Host 'Smoke test passed.'

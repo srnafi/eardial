@@ -1,0 +1,100 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish, for example v0.1.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # The tag is the version. Keeping one source of truth stops the exe
+      # reporting a version that does not match the release page.
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          if (-not $tag) { $tag = '${{ github.ref_name }}' }
+          $version = $tag.TrimStart('v')
+
+          "tag=$tag"         >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing $tag as $version"
+
+      - name: Publish
+        run: >
+          dotnet publish src/LeftRightAudioBalancer
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: Verify the exe runs
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:RUNNER_TEMP 'shortcut.txt'
+          $exe = Join-Path $PWD 'publish/LeftRightAudioBalancer.exe'
+
+          $process = Start-Process -FilePath $exe -ArgumentList '--shortcut-check', $report -Wait -PassThru
+          Write-Host "exit code: $($process.ExitCode)"
+
+          if (-not (Test-Path $report)) {
+            throw 'The smoke test produced no report.'
+          }
+
+          Get-Content $report
+
+          if (-not (Select-String -Path $report -Pattern 'verdict\s+PASS' -Quiet)) {
+            throw 'The published exe failed its smoke test.'
+          }
+
+          $info = (Get-Item $exe).VersionInfo
+          Write-Host "File version: $($info.FileVersion)"
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash .\publish\LeftRightAudioBalancer.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  LeftRightAudioBalancer.exe" | Out-File -Encoding ascii publish\LeftRightAudioBalancer.exe.sha256
+          Get-Content publish\LeftRightAudioBalancer.exe.sha256
+
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+
+          $body = @"
+          Left and right volume for one Windows output device.
+
+          Download ``LeftRightAudioBalancer.exe`` and run it. Self-contained: no runtime to install.
+
+          The exe is unsigned, so Windows may warn on first run. Verify the SHA256 above if you want to check the download.
+          "@
+
+          gh release create $tag `
+            --title "Left Right Audio Balancer $tag" `
+            --notes $body `
+            publish/LeftRightAudioBalancer.exe `
+            publish/LeftRightAudioBalancer.exe.sha256

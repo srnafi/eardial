@@ -1,5 +1,7 @@
 # Left Right Audio Balancer
 
+[![build](https://github.com/srnafi/left-right-audio-balancer/actions/workflows/ci.yml/badge.svg)](https://github.com/srnafi/left-right-audio-balancer/actions/workflows/ci.yml)
+
 Balancing left and right audio on Windows 10 is a pain. The setting exists,
 but it is buried several dialogs deep in Control Panel, behind tabs most
 people never open. When one ear is louder than the other, fixing it means
@@ -19,11 +21,12 @@ locally and gives you the left and right channels back.
 
 ## Install
 
-No release has been published yet. Build it from source, or grab the output of
-the publish command under [Build](#build).
+Download `LeftRightAudioBalancer.exe` from the
+[latest release](https://github.com/srnafi/left-right-audio-balancer/releases/latest)
+and run it. It is self-contained, so there is no runtime to install.
 
-Run `LeftRightAudioBalancer.exe`. It is self-contained, so there is no runtime
-to install.
+Until the first release is tagged, build it from source with the publish
+command under [Build](#build).
 
 The card opens in the bottom-right corner of the desktop. Right-click it to
 quit.
@@ -98,6 +101,29 @@ That writes `publish/LeftRightAudioBalancer.exe` at roughly 73 MB. Drop
 `--self-contained` for a much smaller file, but the machine then needs the
 .NET 10 desktop runtime.
 
+## Releasing
+
+Two workflows run on GitHub Actions.
+
+`ci.yml` runs on every push to `main` and on pull requests. It restores,
+builds with warnings as errors, publishes the single-file exe, then runs that
+exe and checks it can still resolve its own path. Warnings are errors only in
+CI: the single-file publish breaks `Assembly.Location`, and that surfaced as a
+warning rather than a failure, so the setting is there to catch the next one.
+
+`release.yml` runs when you push a tag:
+
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+It stamps the version from the tag, publishes, smoke tests the exe, writes a
+SHA256 file, and creates a GitHub Release with both attached.
+
+The exe is unsigned. Windows will warn on first run until it is signed with a
+code-signing certificate.
+
 ## How it works
 
 Per-ear volume is the per-channel volume of a render endpoint. Core Audio
@@ -123,6 +149,7 @@ file instead. They are compiled into every build, including release.
 | `--chip` | Forces the warning chip before the above |
 | `--select <n>` | Selects a device by list index before the above |
 | `--ear <n> <value>` | Pins an ear slider for a capture without writing to the endpoint |
+| `--shortcut-check <path>` | Creates the startup shortcut, reports what it points at, removes it |
 
 `--selftest-ui` restores the device to its original levels when it finishes.
 

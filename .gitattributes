@@ -1,0 +1,17 @@
+# Normalise line endings so a Windows checkout and a Linux checkout agree.
+# Without this, git rewrites every file on checkout and the diff noise hides
+# real changes.
+* text=auto eol=crlf
+
+*.cs    text eol=crlf
+*.xaml  text eol=crlf
+*.csproj text eol=crlf
+*.slnx  text eol=crlf
+*.yml   text eol=lf
+*.md    text eol=lf
+
+# Binary, never touched by the line-ending rules.
+*.ico   binary
+*.png   binary
+*.gif   binary
+*.exe   binary
