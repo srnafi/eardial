@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Security.Principal;
 using Microsoft.Win32;
 
-namespace EarDial.Audio;
+namespace LeftRightAudioBalancer.Audio;
 
 // Bluetooth headsets take volume over AVRCP "absolute volume": Windows sends a
 // level and the headset applies it, so the endpoint exposes a single channel

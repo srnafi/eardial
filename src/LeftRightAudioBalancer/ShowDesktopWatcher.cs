@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
 
-namespace EarDial;
+namespace LeftRightAudioBalancer;
 
 // Listens for foreground changes, minimize and restore. The widget is topmost
 // while no real app window is visible, which is what Show Desktop produces, and

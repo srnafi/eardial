@@ -6,9 +6,9 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using EarDial.Audio;
+using LeftRightAudioBalancer.Audio;
 
-namespace EarDial;
+namespace LeftRightAudioBalancer;
 
 public partial class MainWindow : Window
 {

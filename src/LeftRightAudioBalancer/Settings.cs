@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 
-namespace EarDial;
+namespace LeftRightAudioBalancer;
 
 internal sealed class AppSettings
 {
@@ -18,7 +18,7 @@ internal static class SettingsStore
 {
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "EarDial",
+        "LeftRightAudioBalancer",
         "settings.json");
 
     // Startup-folder shortcut: visible in Task Manager's Startup apps, no
@@ -26,7 +26,7 @@ internal static class SettingsStore
     // and delete it.
     private static string ShortcutPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.Startup),
-        "EarDial.lnk");
+        "LeftRightAudioBalancer.lnk");
 
     public static AppSettings Load()
     {
@@ -80,7 +80,7 @@ internal static class SettingsStore
             var link = shell.CreateShortcut(ShortcutPath);
             link.TargetPath = exe;
             link.WorkingDirectory = AppContext.BaseDirectory;
-            link.Description = "EarDial per-ear volume widget";
+            link.Description = "Left Right Audio Balancer";
             link.Save();
         }
         finally

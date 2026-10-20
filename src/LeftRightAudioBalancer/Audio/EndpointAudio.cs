@@ -1,6 +1,6 @@
 using NAudio.CoreAudioApi;
 
-namespace EarDial.Audio;
+namespace LeftRightAudioBalancer.Audio;
 
 public sealed record EndpointState(
     string Id,

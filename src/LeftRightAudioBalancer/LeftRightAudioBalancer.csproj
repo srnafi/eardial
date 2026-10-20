@@ -6,13 +6,13 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>EarDial</AssemblyName>
-    <RootNamespace>EarDial</RootNamespace>
-    <ApplicationIcon>Assets\eardial.ico</ApplicationIcon>
+    <AssemblyName>LeftRightAudioBalancer</AssemblyName>
+    <RootNamespace>LeftRightAudioBalancer</RootNamespace>
+    <ApplicationIcon>Assets\leftrightaudiobalancer.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\eardial.ico" />
+    <Resource Include="Assets\leftrightaudiobalancer.ico" />
   </ItemGroup>
 
   <ItemGroup>

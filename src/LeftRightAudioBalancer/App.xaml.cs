@@ -6,10 +6,10 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using EarDial.Audio;
+using LeftRightAudioBalancer.Audio;
 using NAudio.CoreAudioApi;
 
-namespace EarDial;
+namespace LeftRightAudioBalancer;
 
 public partial class App : Application
 {

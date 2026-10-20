@@ -3,6 +3,6 @@
     <Project Path="probes/EndpointChannels/EndpointChannels.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/EarDial/EarDial.csproj" />
+    <Project Path="src/LeftRightAudioBalancer/LeftRightAudioBalancer.csproj" />
   </Folder>
 </Solution>

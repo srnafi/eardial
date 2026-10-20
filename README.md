@@ -1,97 +1,117 @@
-# EarDial
+# Left Right Audio Balancer
 
-A desktop widget for per-ear volume on Windows.
+Balancing left and right audio on Windows 10 is a pain. The setting exists,
+but it is buried several dialogs deep in Control Panel, behind tabs most
+people never open. When one ear is louder than the other, fixing it means
+finding that panel again, every time.
 
-Windows can already set a device's left and right volume separately, but the
-controls are buried in Control Panel. EarDial keeps a small card on the
-desktop with a slider pair for the selected output device.
+This app puts both channels on a small card you keep on the desktop: two
+sliders, one per ear, plus a master that scales both without breaking the
+balance you set.
 
-## Status
+![The card on the desktop](docs/screenshot.png)
 
-- [x] Enumerate render endpoints and read per-channel volume
-- [x] Write per-channel volume, confirmed audible on a Bluetooth headset
-- [x] Widget window with custom slider, switch and pill styling
-- [x] Remember selected device and link state
-- [x] Linked mode that preserves the L/R offset
-- [x] Detect single-channel endpoints and explain them in place
-- [x] Bluetooth absolute-volume fix, applied from the widget
-- [x] Single-file release build
-- [ ] Detect a driver that accepts the write and plays the same level anyway
+It also fixes the reason per-ear control is often missing. Many Bluetooth
+headsets take volume over AVRCP absolute volume, so Windows hands the level to
+the headset and the endpoint reports a single channel. There is nothing to
+split. The app can turn absolute volume off, which makes Windows own the level
+locally and gives you the left and right channels back.
 
-## How it works
+## Install
 
-Per-ear volume is the per-channel volume of a render endpoint. Core Audio
-exposes it through `IAudioEndpointVolume`, and NAudio wraps the same API.
+No release has been published yet. Build it from source, or grab the output of
+the publish command under [Build](#build).
 
-### Linked
+Run `LeftRightAudioBalancer.exe`. It is self-contained, so there is no runtime
+to install.
 
-Linked holds the offset between the ears rather than their absolute values.
-Dragging either slider moves the other by the same delta, so a balance you
-dialed in survives the next volume change. The footer prints the offset it is
-holding: `R -12` means the right ear sits twelve points below the left.
-Unlink the ears to move them independently. Centre sets both to their average.
+The card opens in the bottom-right corner of the desktop. Right-click it to
+quit.
 
-### Master
+## Using it
 
-Master sets the ceiling for both ears and never reads below the loudest one.
-Dragging it rescales both channels by the same ratio (`SetMasterScaled`), so
-the balance does not move.
+Pick your output device from the dropdown at the top. The sliders below show
+that device's left and right volume.
 
-### Bluetooth headsets
+**Linked** is on by default. Dragging either slider moves the other by the same
+amount, so the offset between the ears stays put. The footer shows that offset:
+`R -12` means the right ear is twelve points below the left. Turn Linked off to
+move each ear independently. **Centre** sets both to their average.
 
-Most Bluetooth headsets take volume over AVRCP absolute volume. Windows sends
-a level and the headset applies it, so the endpoint reports a single channel
-and per-ear writes are accepted but ignored.
+**VOL** is the master. It never goes below the loudest ear, and moving it
+rescales both channels by the same ratio, so your balance survives.
 
-The fix is the machine-wide `DisableAbsoluteVolume` value under
-`HKLM\SYSTEM\CurrentControlSet\Control\Bluetooth\Audio\AVRCP\CT`, which makes
-Windows own the level locally. It needs admin, so the write happens in an
-elevated child process (`--set-absolute-volume 0|1`). The parent reads the key
-back rather than trusting the exit code, then restarts `BTAGService` so no
-unplug is needed.
+The pin in the header keeps the card above other windows. Without it, the card
+sits at the back and comes forward when you show the desktop.
 
-When a single-channel endpoint is detected, a chip above the sliders says so.
-On a Bluetooth endpoint the chip carries a one-click Fix; elsewhere it is a
-plain explanation. The drawer has the same action plus Revert.
+## Bluetooth headsets
 
-### Slider geometry
+If a headset shows only one channel, the card says so above the sliders. On a
+Bluetooth device the message carries a **Fix** button.
 
-Each slider's thumb is exactly as wide as the knob it draws, with a
-transparent overhang for the grab area. A wider thumb pushes the knob in from
-the track ends and stops the fill at the thumb's edge instead of the dot's,
-which shows up as a gap between the blue line and the knob. Keep the two
-widths equal when restyling.
+The fix writes `DisableAbsoluteVolume` under
+`HKLM\SYSTEM\CurrentControlSet\Control\Bluetooth\Audio\AVRCP\CT`. It needs
+administrator rights, so Windows will ask for permission. After it applies,
+reconnect the headset or let the app restart the Bluetooth audio service.
 
-## Requirements
+This is a machine-wide setting. Revert it from the settings drawer if you would
+rather let the headset control its own volume.
 
-- Windows 10 build 19041 or newer, or Windows 11
-- .NET 10 SDK to build
+## Settings
+
+Click the sliders icon in the header.
+
+- **Start with Windows** adds a shortcut to your Startup folder.
+- **Bluetooth per-ear fix** applies or reverts the registry value above.
+
+Settings live in `%APPDATA%\LeftRightAudioBalancer\settings.json`.
+
+## Limitations
+
+- Per-ear volume depends on the driver. Some drivers accept the write and keep
+  playing the same level on both sides. The app cannot detect that case,
+  because Core Audio reports the value you wrote, not what the hardware does.
+- Devices that report one channel cannot be split. That is what the Bluetooth
+  fix is for.
+- Windows only. It uses Core Audio through NAudio.
+- The registry fix is machine-wide and needs admin. It also affects other
+  Bluetooth audio devices on the same machine.
 
 ## Build
 
+Requires the .NET 10 SDK.
+
 ```
 dotnet build
-dotnet run --project src/EarDial
+dotnet run --project src/LeftRightAudioBalancer
 ```
 
-## Release
-
-Single self-contained executable, no runtime to install:
+To produce a single self-contained executable:
 
 ```
-dotnet publish src/EarDial -c Release -r win-x64 --self-contained true ^
+dotnet publish src/LeftRightAudioBalancer -c Release -r win-x64 --self-contained true ^
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
   -p:EnableCompressionInSingleFile=true -o publish
 ```
 
-That produces `publish/EarDial.exe` at roughly 73 MB. Dropping
-`--self-contained` gives a much smaller file but requires the .NET 10 desktop
-runtime on the machine.
+That writes `publish/LeftRightAudioBalancer.exe` at roughly 73 MB. Drop
+`--self-contained` for a much smaller file, but the machine then needs the
+.NET 10 desktop runtime.
 
-## Diagnostics
+## How it works
 
-The app is a WinExe, so it has no console. Each flag writes its result to a
-file instead. None of this ships in a release build.
+Per-ear volume is the per-channel volume of a render endpoint. Core Audio
+exposes it through `IAudioEndpointVolume`; NAudio wraps that API.
+
+Each slider's thumb is the same width as the knob it draws, with a transparent
+overhang for the grab area. A wider thumb pushes the knob in from the track
+ends and stops the fill at the thumb edge, which leaves a visible gap between
+the line and the knob. Keep the two widths equal when restyling.
+
+## Development
+
+The app is a WinExe, so it has no console. These flags write their result to a
+file instead. They are compiled into every build, including release.
 
 | Flag | Writes |
 | --- | --- |
@@ -106,9 +126,8 @@ file instead. None of this ships in a release build.
 
 `--selftest-ui` restores the device to its original levels when it finishes.
 
-## Probes
-
-Throwaway code, one question per project, excluded from the build.
+`probes/` holds throwaway code, one question per project, excluded from the
+build.
 
 ```
 dotnet run --project probes/EndpointChannels
