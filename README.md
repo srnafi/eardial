@@ -11,7 +11,7 @@ This app puts both channels on a small card you keep on the desktop: two
 sliders, one per ear, plus a master that scales both without breaking the
 balance you set.
 
-![The card on the desktop](docs/screenshot.png)
+<img src="docs/screenshot.png" width="340" alt="The card on the desktop">
 
 It also fixes the reason per-ear control is often missing. Many Bluetooth
 headsets take volume over AVRCP absolute volume, so Windows hands the level to
@@ -24,9 +24,6 @@ locally and gives you the left and right channels back.
 Download `LeftRightAudioBalancer.exe` from the
 [latest release](https://github.com/srnafi/left-right-audio-balancer/releases/latest)
 and run it. It is self-contained, so there is no runtime to install.
-
-Until the first release is tagged, build it from source with the publish
-command under [Build](#build).
 
 The card opens in the bottom-right corner of the desktop the first time. Once
 you drag it somewhere, it comes back there on the next start. Right-click it to
@@ -74,7 +71,7 @@ rather let the headset control its own volume.
 
 Click the sliders icon in the header.
 
-![The settings drawer](docs/settings.png)
+<img src="docs/settings.png" width="340" alt="The settings drawer">
 
 - **Start with Windows** adds a shortcut to your Startup folder.
 - **Bluetooth per-ear fix** applies or reverts the registry value above.
@@ -83,17 +80,6 @@ Click the sliders icon in the header.
 Settings live in `%APPDATA%\LeftRightAudioBalancer\settings.json`. That file
 holds the selected device, the lock and linked states, the start-with-Windows
 flag, and the last card position.
-
-## Limitations
-
-- Per-ear volume depends on the driver. Some drivers accept the write and keep
-  playing the same level on both sides. The app cannot detect that case,
-  because Core Audio reports the value you wrote, not what the hardware does.
-- Devices that report one channel cannot be split. That is what the Bluetooth
-  fix is for.
-- Windows only. It uses Core Audio through NAudio.
-- The registry fix is machine-wide and needs admin. It also affects other
-  Bluetooth audio devices on the same machine.
 
 ## Build
 
