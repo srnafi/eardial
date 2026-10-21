@@ -53,19 +53,27 @@
                         Tag="off"
                         ToolTipService.InitialShowDelay="0"
                         ToolTipService.ShowDuration="30000"
-                        ToolTip="Always on top"
+                        ToolTip="Lock position"
                         Click="Pin_Click">
+                    <!-- A padlock, not a drawing pin. The pin used to mean
+                         always-on-top; now it means the card cannot be dragged,
+                         so the glyph has to say "locked". -->
                     <Viewbox Width="14" Height="14">
                         <Canvas Width="24" Height="24">
-                            <Path Data="M12,16.5 L12,22"
+                            <Path Data="M8,11 L8,8.2 A4,4 0 0 1 16,8.2 L16,11"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                   StrokeThickness="1.9"
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round" />
-                            <Path Data="M9,10.8 L9,6 A3,3 0 0 1 15,6 L15,10.8 L17,13 L17,14 L7,14 L7,13 Z"
+                            <Rectangle Canvas.Left="5.5" Canvas.Top="11" Width="13" Height="9.5"
+                                       RadiusX="2.2" RadiusY="2.2"
+                                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                       StrokeThickness="1.9" />
+                            <Path Data="M12,14.5 L12,17.2"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                  StrokeThickness="1.8"
-                                  StrokeLineJoin="Round" />
+                                  StrokeThickness="1.9"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" />
                         </Canvas>
                     </Viewbox>
                 </Button>

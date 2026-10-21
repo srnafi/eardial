@@ -9,6 +9,15 @@ internal sealed class AppSettings
     public bool AlwaysOnTop { get; set; }
     public bool StartOnBoot { get; set; }
 
+    // Locked stops the card being dragged. It is not the same thing as
+    // AlwaysOnTop: a locked card can still sit at the back of the desktop.
+    public bool Locked { get; set; }
+
+    // Last dropped position. Null until the card has been dragged once, so a
+    // fresh install still opens in the corner.
+    public double? WindowLeft { get; set; }
+    public double? WindowTop { get; set; }
+
     // Linked keeps the L-R offset when either ear moves. On by default: most
     // people want the balance they dialed in to survive the next volume change.
     public bool Linked { get; set; } = true;

@@ -20,6 +20,9 @@ public partial class MainWindow : Window
     private bool _linked = true;
     private bool _forceChip;
     private bool _freezeEars;
+
+    // Position lock, not always-on-top. See Pin_Click.
+    private bool _locked;
     private readonly AppSettings _settings;
 
     private readonly ShowDesktopWatcher _watcher;
@@ -51,8 +54,9 @@ public partial class MainWindow : Window
         LinkToggle.IsChecked = _linked;
         BootSwitch.IsChecked = _settings.StartOnBoot;
 
-        PinButton.Tag = _settings.AlwaysOnTop ? "on" : "off";
-        PinButton.ToolTip = _settings.AlwaysOnTop ? "Stop staying on top" : "Always on top";
+        _locked = _settings.Locked;
+        PinButton.Tag = _locked ? "on" : "off";
+        PinButton.ToolTip = _locked ? "Unlock position" : "Lock position";
 
         RefreshFixState();
         LoadDevices();
@@ -88,9 +92,23 @@ public partial class MainWindow : Window
         _settings.AlwaysOnTop = _watcher.ManualTopmost;
         _settings.Linked = _linked;
         _settings.StartOnBoot = BootSwitch.IsChecked == true;
+        _settings.Locked = _locked;
+
+        // Only remember a position the user actually chose. If the card is
+        // still parked in the default corner, leave the stored value alone so a
+        // resolution change can still re-place it.
+        if (_placedByUser)
+        {
+            _settings.WindowLeft = Left;
+            _settings.WindowTop = Top;
+        }
 
         SettingsStore.Save(_settings);
     }
+
+    // Set once the user drags the card, so the default corner placement is not
+    // mistaken for a chosen position.
+    private bool _placedByUser;
 
     // Window position is only trustworthy once the size-to-content pass has
     // settled. Loaded can still report a provisional ActualHeight, which parked
@@ -113,6 +131,17 @@ public partial class MainWindow : Window
 
     private void PlaceAtDesktopCorner()
     {
+        // A remembered position wins, as long as it is still on a visible
+        // desktop. Unplugging a monitor can leave the card off-screen.
+        if (_settings.WindowLeft is double savedLeft && _settings.WindowTop is double savedTop
+            && IsOnScreen(savedLeft, savedTop))
+        {
+            Left = savedLeft;
+            Top = savedTop;
+            _placedByUser = true;
+            return;
+        }
+
         var area = SystemParameters.WorkArea;
 
         // ActualWidth/Height can lag SizeToContent by a frame; fall back to the
@@ -124,6 +153,18 @@ public partial class MainWindow : Window
 
         Left = area.Right - width - 24;
         Top = area.Bottom - height - 24;
+    }
+
+    // Keeps a restored position from stranding the card on a monitor that is
+    // no longer attached.
+    private bool IsOnScreen(double left, double top)
+    {
+        const double margin = 60;
+
+        return SystemParameters.VirtualScreenLeft - margin <= left
+            && left <= SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - margin
+            && SystemParameters.VirtualScreenTop - margin <= top
+            && top <= SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - margin;
     }
 
     private void LoadDevices()
@@ -609,15 +650,14 @@ public partial class MainWindow : Window
 
     // ===================== settings =====================
 
+    // The pin locks the card in place. It is deliberately not always-on-top:
+    // those are separate ideas, and the header only has room for one.
     private void Pin_Click(object sender, RoutedEventArgs e)
     {
-        bool on = PinButton.Tag as string != "on";
+        _locked = !_locked;
 
-        PinButton.Tag = on ? "on" : "off";
-        PinButton.ToolTip = on ? "Stop staying on top" : "Always on top";
-
-        _watcher.ManualTopmost = on;
-        _watcher.Apply();
+        PinButton.Tag = _locked ? "on" : "off";
+        PinButton.ToolTip = _locked ? "Unlock position" : "Lock position";
     }
 
     private void Gear_Click(object sender, RoutedEventArgs e)
@@ -811,7 +851,15 @@ public partial class MainWindow : Window
 
     private void Card_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+        if (_locked) return;
+
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
+
+            // DragMove only returns once the drag ends, so this is the drop.
+            _placedByUser = true;
+        }
     }
 
     // Diagnostics for --dump. WinExe has no console, so state has to be written
