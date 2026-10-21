@@ -94,13 +94,27 @@ jobs:
         run: |
           $tag = '${{ steps.version.outputs.tag }}'
 
-          $body = @"
-          Left and right volume for one Windows output device.
+          # A changelog beats one blurb repeated for every version, so notes
+          # live next to the code as docs/release-notes/<tag>.md. Versions with
+          # no file fall back to the boilerplate below.
+          $fallback = @(
+            'Left and right volume for one Windows output device.'
+            ''
+            'Download `LeftRightAudioBalancer.exe` and run it. Self-contained: no runtime to install.'
+            ''
+            'The exe is unsigned, so Windows may warn on first run. Verify the SHA256 above if you want to check the download.'
+          ) -join "`n"
 
-          Download ``LeftRightAudioBalancer.exe`` and run it. Self-contained: no runtime to install.
+          $notesFile = "docs/release-notes/$tag.md"
 
-          The exe is unsigned, so Windows may warn on first run. Verify the SHA256 above if you want to check the download.
-          "@
+          if (Test-Path $notesFile) {
+            Write-Host "Using release notes from $notesFile"
+            $body = Get-Content $notesFile -Raw
+          }
+          else {
+            Write-Host "No notes file for $tag, using the default body"
+            $body = $fallback
+          }
 
           gh release create $tag `
             --title "Left Right Audio Balancer $tag" `
