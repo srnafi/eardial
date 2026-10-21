@@ -28,13 +28,15 @@ and run it. It is self-contained, so there is no runtime to install.
 Until the first release is tagged, build it from source with the publish
 command under [Build](#build).
 
-The card opens in the bottom-right corner of the desktop. Right-click it to
-quit.
+The card opens in the bottom-right corner of the desktop the first time. Once
+you drag it somewhere, it comes back there on the next start. Right-click it to
+quit, or use **Quit** in the settings drawer.
 
 ## Using it
 
-Pick your output device from the dropdown at the top. The sliders below show
-that device's left and right volume.
+Pick your output device from the dropdown at the top. It shows what kind of
+device it is under the name, and swaps in a Bluetooth glyph when the endpoint
+is wireless. The sliders below show that device's left and right volume.
 
 **Linked** is on by default. Dragging either slider moves the other by the same
 amount, so the offset between the ears stays put. The footer shows that offset:
@@ -44,8 +46,16 @@ move each ear independently. **Centre** sets both to their average.
 **VOL** is the master. It never goes below the loudest ear, and moving it
 rescales both channels by the same ratio, so your balance survives.
 
-The pin in the header keeps the card above other windows. Without it, the card
-sits at the back and comes forward when you show the desktop.
+Each ear slider carries a live level meter: the bright bar inside the fill
+tracks what is actually coming out of that channel, so you can tell whether a
+quiet side is the setting or the audio.
+
+The **padlock** in the header locks the card in place. While it is locked the
+card cannot be dragged, but every control still works, so clicking a slider
+cannot move the whole window by accident. The lock survives a restart.
+
+By default the card sits at the back of the desktop, out of the way of real
+windows, and comes forward when you show the desktop.
 
 ## Bluetooth headsets
 
@@ -64,10 +74,15 @@ rather let the headset control its own volume.
 
 Click the sliders icon in the header.
 
+![The settings drawer](docs/settings.png)
+
 - **Start with Windows** adds a shortcut to your Startup folder.
 - **Bluetooth per-ear fix** applies or reverts the registry value above.
+- **Quit** closes the app.
 
-Settings live in `%APPDATA%\LeftRightAudioBalancer\settings.json`.
+Settings live in `%APPDATA%\LeftRightAudioBalancer\settings.json`. That file
+holds the selected device, the lock and linked states, the start-with-Windows
+flag, and the last card position.
 
 ## Limitations
 
@@ -110,7 +125,13 @@ exposes it through `IAudioEndpointVolume`; NAudio wraps that API.
 Each slider's thumb is the same width as the knob it draws, with a transparent
 overhang for the grab area. A wider thumb pushes the knob in from the track
 ends and stops the fill at the thumb edge, which leaves a visible gap between
-the line and the knob. Keep the two widths equal when restyling.
+the line and the knob. Keep the two widths equal when restyling. The hover
+halo is a separate ellipse that grows through a negative margin, so it never
+changes the thumb's layout box.
+
+The level meter is polled every 50 ms. It jumps straight to a new peak and
+falls back by a fixed ratio on each tick, which reads as a decay rather than a
+flicker.
 
 ## Development
 
@@ -125,6 +146,7 @@ file instead. They are compiled into every build, including release.
 | `--selftest-ui <path>` | Linked, unlinked, centre and master behaviour against the selected endpoint |
 | `--drawer` | Opens the settings drawer before the above |
 | `--chip` | Forces the warning chip before the above |
+| `--opencombo` | Opens the device list before the above |
 | `--select <n>` | Selects a device by list index before the above |
 | `--ear <n> <value>` | Pins an ear slider for a capture without writing to the endpoint |
 | `--shortcut-check <path>` | Creates the startup shortcut, reports what it points at, removes it |
