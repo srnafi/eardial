@@ -6,8 +6,10 @@ using System.Windows.Threading;
 namespace LeftRightAudioBalancer;
 
 // Listens for foreground changes, minimize and restore. The widget is topmost
-// while no real app window is visible, which is what Show Desktop produces, and
-// sits at the bottom of the normal band the rest of the time.
+// while the desktop is in view, which is what Show Desktop leaves behind. While
+// an app holds focus it drops out of the topmost band so it cannot cover that
+// app: HWND_BOTTOM is never used, because a window below the desktop windows
+// disappears with everything else when Show Desktop runs.
 internal sealed class ShowDesktopWatcher : IDisposable
 {
     private const uint EventForeground = 0x0003;
@@ -21,8 +23,7 @@ internal sealed class ShowDesktopWatcher : IDisposable
     private const int WsExAppWindow = 0x40000;
     private const int GwOwner = 4;
     private const int SwShowNoActivate = 4;
-    private const int DwmCloakedAttribute = 13;
-    private const int DwmCloakedShield = 11;
+    private const int DwmCloaked = 14;
 
     private delegate void WinEventProc(IntPtr hook, uint eventId, IntPtr window, int objectId, int childId, uint thread, uint time);
     private delegate bool EnumProc(IntPtr window, IntPtr lParam);
@@ -67,7 +68,7 @@ internal sealed class ShowDesktopWatcher : IDisposable
     private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 
     private static readonly IntPtr Topmost = new(-1);
-    private static readonly IntPtr Bottom = new(1);
+    private static readonly IntPtr NotTopmost = new(-2);
 
     private readonly Window _window;
     private readonly WinEventProc _proc;
@@ -149,25 +150,46 @@ internal sealed class ShowDesktopWatcher : IDisposable
         IntPtr self = new WindowInteropHelper(_window).Handle;
         if (self == IntPtr.Zero) return;
 
-        bool top = ManualTopmost || DesktopInView();
+        // A minimized window cannot be raised, so restore first and then decide.
+        // Show Desktop minimizes the widget along with everything else.
+        if (IsIconic(self)) ShowWindow(self, SwShowNoActivate);
 
-        if (top)
+        if (ManualTopmost || DesktopInView())
         {
-            // Show Desktop can minimize the widget before this runs.
-            if (IsIconic(self)) ShowWindow(self, SwShowNoActivate);
-
             SetWindowPos(self, Topmost, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
         }
         else
         {
-            SetWindowPos(self, Bottom, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
+            // Not topmost, never bottom: HWND_BOTTOM puts the widget under the
+            // desktop windows themselves, which is what made it vanish on Show
+            // Desktop and then stay gone once the desktop was in view.
+            SetWindowPos(self, NotTopmost, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
         }
     }
 
-    // True when no real app window is visible, in other words the desktop.
+    // True when the desktop is what the user is looking at. The foreground
+    // window is the authority: Show Desktop hands focus to the shell, so a
+    // Progman/WorkerW foreground means the desktop, whatever else happens to be
+    // visible. The enumeration below is the fallback for the moments when the
+    // foreground window is one of our own or has not settled yet.
     private bool DesktopInView()
     {
         IntPtr self = new WindowInteropHelper(_window).Handle;
+
+        IntPtr foreground = GetForegroundWindow();
+        if (foreground != IntPtr.Zero && foreground != self)
+        {
+            _name.Clear();
+            GetClassName(foreground, _name, _name.Capacity);
+            string front = _name.ToString();
+
+            if (front is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
+
+            // A normal app holds focus, so the desktop is not in view even if
+            // every other window happens to be minimized.
+            if (front is not "Windows.UI.Core.CoreWindow") return false;
+        }
+
         bool appVisible = false;
 
         EnumWindows((window, _) =>
@@ -175,10 +197,9 @@ internal sealed class ShowDesktopWatcher : IDisposable
             if (window == self || !IsWindowVisible(window) || IsIconic(window)) return true;
 
             // Cloaked windows are managed by DWM but not drawn, so they cannot
-            // cover anything. Attribute 11 catches shell-cloaked surfaces that
-            // attribute 13 does not report on Windows 10.
-            if ((DwmGetWindowAttribute(window, DwmCloakedAttribute, out int cloaked, 4) == 0 && cloaked != 0)
-                || (DwmGetWindowAttribute(window, DwmCloakedShield, out int shielded, 4) == 0 && shielded != 0))
+            // cover anything. DWMWA_CLOAKED (14) is the attribute that reports
+            // this; 13 and 11 return E_INVALIDARG on Windows 10.
+            if (DwmGetWindowAttribute(window, DwmCloaked, out int cloaked, 4) == 0 && cloaked != 0)
             {
                 return true;
             }

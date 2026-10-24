@@ -21,3 +21,4 @@ Thumbs.db
 .DS_Store
 # Local verification captures
 .shots/
+/src/LeftRightAudioBalancer/Properties/PublishProfiles
