@@ -5,25 +5,33 @@ using System.Windows.Threading;
 
 namespace LeftRightAudioBalancer;
 
-// Listens for foreground changes, minimize and restore. The widget is topmost
-// while the desktop is in view, which is what Show Desktop leaves behind. While
-// an app holds focus it drops out of the topmost band so it cannot cover that
-// app: HWND_BOTTOM is never used, because a window below the desktop windows
-// disappears with everything else when Show Desktop runs.
-internal sealed class ShowDesktopWatcher : IDisposable
+// Keeps the card at the back of the desktop, the way a widget belongs there.
+// The card is never topmost: topmost is what let a click on the taskbar or on
+// the wallpaper throw it over every open window. Instead it is parked directly
+// above the desktop window, which is the bottom of the normal z-order band.
+// Show Desktop minimizes everything else, so the card is left on the screen
+// by itself; opening a window covers it again. That is the whole illusion, and
+// it needs no special case for Win+D, the taskbar or the wallpaper.
+internal sealed class DesktopAnchor : IDisposable
 {
     private const uint EventForeground = 0x0003;
     private const uint EventMinStart = 0x0016;
     private const uint EventMinEnd = 0x0017;
-    private const uint NoActivate = 0x0010;
+
     private const uint NoMove = 0x0002;
     private const uint NoSize = 0x0001;
+    private const uint NoActivate = 0x0010;
+
     private const int GwlExStyle = -20;
-    private const int WsExToolWindow = 0x80;
-    private const int WsExAppWindow = 0x40000;
-    private const int GwOwner = 4;
+    private const int WsExTopmost = 0x00000008;
+
+    private const int GwHwndPrev = 3;
     private const int SwShowNoActivate = 4;
-    private const int DwmCloaked = 14;
+
+    // Guard for the walk up the z-order. The topmost windows that pile up
+    // above the desktop are a handful in practice; this just bounds a walk
+    // that should end after a step or two.
+    private const int MaxWalk = 4096;
 
     private delegate void WinEventProc(IntPtr hook, uint eventId, IntPtr window, int objectId, int childId, uint thread, uint time);
     private delegate bool EnumProc(IntPtr window, IntPtr lParam);
@@ -52,9 +60,6 @@ internal sealed class ShowDesktopWatcher : IDisposable
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr window, int index);
 
-    [DllImport("user32.dll")]
-    private static extern int GetWindowTextLength(IntPtr window);
-
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr window, System.Text.StringBuilder name, int maxLength);
 
@@ -63,9 +68,6 @@ internal sealed class ShowDesktopWatcher : IDisposable
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
 
     private static readonly IntPtr Topmost = new(-1);
     private static readonly IntPtr NotTopmost = new(-2);
@@ -79,10 +81,10 @@ internal sealed class ShowDesktopWatcher : IDisposable
     private IntPtr _hook1;
     private IntPtr _hook2;
 
-    // When set the widget stays above everything regardless of what is visible.
+    // When set the card stays above everything regardless of what is visible.
     public bool ManualTopmost { get; set; }
 
-    public ShowDesktopWatcher(Window window, bool manualTopmost)
+    public DesktopAnchor(Window window, bool manualTopmost)
     {
         _window = window;
         ManualTopmost = manualTopmost;
@@ -102,8 +104,8 @@ internal sealed class ShowDesktopWatcher : IDisposable
         {
             if (objectId != 0) return;
 
-            // Foreground changes to a normal app window are applied directly, so
-            // the widget never sits over an app, not even briefly.
+            // Foreground changes to a normal app window are applied directly,
+            // so the card sinks out of the way without a visible pause.
             IntPtr foreground = GetForegroundWindow();
             if (foreground != IntPtr.Zero)
             {
@@ -119,7 +121,8 @@ internal sealed class ShowDesktopWatcher : IDisposable
                 }
             }
 
-            // Show Desktop animates windows away, so shell transitions settle first.
+            // Show Desktop animates windows away, so shell transitions settle
+            // first. The card has nowhere to go either way, so this can wait.
             _debounce.Stop();
             _debounce.Start();
         };
@@ -150,78 +153,83 @@ internal sealed class ShowDesktopWatcher : IDisposable
         IntPtr self = new WindowInteropHelper(_window).Handle;
         if (self == IntPtr.Zero) return;
 
-        // A minimized window cannot be raised, so restore first and then decide.
-        // Show Desktop minimizes the widget along with everything else.
+        // A minimized window cannot be repositioned, so restore first and then
+        // decide. Show Desktop minimizes the card along with everything else.
         if (IsIconic(self)) ShowWindow(self, SwShowNoActivate);
 
-        if (ManualTopmost || DesktopInView())
+        if (ManualTopmost)
         {
             SetWindowPos(self, Topmost, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
+            return;
         }
-        else
+
+        // The card belongs under the windows, never over them, so a topmost
+        // style left over from an earlier state is dropped before it is moved.
+        if ((GetWindowLong(self, GwlExStyle) & WsExTopmost) != 0)
         {
-            // Not topmost, never bottom: HWND_BOTTOM puts the widget under the
-            // desktop windows themselves, which is what made it vanish on Show
-            // Desktop and then stay gone once the desktop was in view.
             SetWindowPos(self, NotTopmost, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
         }
+
+        // While the card itself has focus the user is working in it: dragging
+        // a slider, dropping the card somewhere. Sinking it then would drop
+        // it behind whatever it is being used over, mid-gesture. As soon as
+        // focus moves anywhere else the card goes back to the back.
+        if (GetForegroundWindow() == self) return;
+
+        SinkToDesktop(self);
     }
 
-    // True when the desktop is what the user is looking at. The foreground
-    // window is the authority: Show Desktop hands focus to the shell, so a
-    // Progman/WorkerW foreground means the desktop, whatever else happens to be
-    // visible. The enumeration below is the fallback for the moments when the
-    // foreground window is one of our own or has not settled yet.
-    private bool DesktopInView()
+    // Parks the card directly above the desktop window: under every other
+    // window, over the wallpaper. Returns without touching anything if the
+    // desktop cannot be found, which is safer than guessing.
+    private void SinkToDesktop(IntPtr self)
     {
-        IntPtr self = new WindowInteropHelper(_window).Handle;
+        IntPtr desktop = FindDesktopWindow(self);
+        if (desktop == IntPtr.Zero) return;
 
-        IntPtr foreground = GetForegroundWindow();
-        if (foreground != IntPtr.Zero && foreground != self)
+        // The card sits immediately after (below) the window above the
+        // desktop, which is the same as sitting directly above the desktop.
+        IntPtr above = GetWindow(desktop, GwHwndPrev);
+
+        // Anything already in the topmost band is skipped. Inserting under
+        // one of those would drag the card into the band, which is the
+        // behaviour this class exists to avoid.
+        for (int i = 0; above != IntPtr.Zero && above != self && IsTopmost(above) && i < MaxWalk; i++)
         {
-            _name.Clear();
-            GetClassName(foreground, _name, _name.Capacity);
-            string front = _name.ToString();
-
-            if (front is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
-
-            // A normal app holds focus, so the desktop is not in view even if
-            // every other window happens to be minimized.
-            if (front is not "Windows.UI.Core.CoreWindow") return false;
+            above = GetWindow(above, GwHwndPrev);
         }
 
-        bool appVisible = false;
+        // Already parked, or the desktop really is at the very top of the
+        // z-order, in which case there is nowhere sensible to sit.
+        if (above == IntPtr.Zero || above == self) return;
+
+        SetWindowPos(self, above, 0, 0, 0, 0, NoMove | NoSize | NoActivate);
+    }
+
+    // The first visible Progman or WorkerW in z-order, which is the top of
+    // the desktop group. Windows keeps a pile of hidden WorkerW helpers
+    // scattered through the list, so the visibility check is what picks the
+    // real desktop out of them.
+    private IntPtr FindDesktopWindow(IntPtr self)
+    {
+        IntPtr found = IntPtr.Zero;
 
         EnumWindows((window, _) =>
         {
-            if (window == self || !IsWindowVisible(window) || IsIconic(window)) return true;
-
-            // Cloaked windows are managed by DWM but not drawn, so they cannot
-            // cover anything. DWMWA_CLOAKED (14) is the attribute that reports
-            // this; 13 and 11 return E_INVALIDARG on Windows 10.
-            if (DwmGetWindowAttribute(window, DwmCloaked, out int cloaked, 4) == 0 && cloaked != 0)
-            {
-                return true;
-            }
-
-            if (GetWindow(window, GwOwner) != IntPtr.Zero) return true;
-            if (GetWindowTextLength(window) == 0) return true;
-
-            int style = GetWindowLong(window, GwlExStyle);
-            if ((style & WsExToolWindow) != 0 && (style & WsExAppWindow) == 0) return true;
+            if (window == self || !IsWindowVisible(window)) return true;
 
             _name.Clear();
             GetClassName(window, _name, _name.Capacity);
             string className = _name.ToString();
 
-            if (className is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
-            // The UWP text-input host is resident but never shown to the user.
-            if (className == "Windows.UI.Core.CoreWindow") return true;
+            if (className is not ("Progman" or "WorkerW")) return true;
 
-            appVisible = true;
+            found = window;
             return false;
         }, IntPtr.Zero);
 
-        return !appVisible;
+        return found;
     }
+
+    private static bool IsTopmost(IntPtr window) => (GetWindowLong(window, GwlExStyle) & WsExTopmost) != 0;
 }

@@ -25,7 +25,7 @@ public partial class MainWindow : Window
     private bool _locked;
     private readonly AppSettings _settings;
 
-    private readonly ShowDesktopWatcher _watcher;
+    private readonly DesktopAnchor _anchor;
 
     // Transport never changes for an endpoint, so it is asked once.
     private readonly Dictionary<string, bool> _bluetooth = new();
@@ -39,13 +39,13 @@ public partial class MainWindow : Window
         _settings = SettingsStore.Load();
 
         InitializeComponent();
-        _watcher = new ShowDesktopWatcher(this, _settings.AlwaysOnTop);
+        _anchor = new DesktopAnchor(this, _settings.AlwaysOnTop);
 
         Loaded += OnLoaded;
         ContentRendered += OnContentRendered;
         Closed += (_, _) =>
         {
-            _watcher.Dispose();
+            _anchor.Dispose();
             SaveSettings();
         };
         SourceInitialized += OnSourceInitialized;
@@ -89,7 +89,7 @@ public partial class MainWindow : Window
     private void SaveSettings()
     {
         _settings.DeviceId = _current?.Id;
-        _settings.AlwaysOnTop = _watcher.ManualTopmost;
+        _settings.AlwaysOnTop = _anchor.ManualTopmost;
         _settings.Linked = _linked;
         _settings.StartOnBoot = BootSwitch.IsChecked == true;
         _settings.Locked = _locked;
@@ -116,7 +116,7 @@ public partial class MainWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         PlaceAtDesktopCorner();
-        _watcher.Start();
+        _anchor.Start();
     }
 
     private bool _placed;
