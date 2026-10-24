@@ -1,7 +1,4 @@
 <Solution>
-  <Folder Name="/probes/">
-    <Project Path="probes/EndpointChannels/EndpointChannels.csproj" />
-  </Folder>
   <Folder Name="/src/">
     <Project Path="src/LeftRightAudioBalancer/LeftRightAudioBalancer.csproj" />
   </Folder>

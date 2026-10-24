@@ -139,13 +139,6 @@ file instead. They are compiled into every build, including release.
 
 `--selftest-ui` restores the device to its original levels when it finishes.
 
-`probes/` holds throwaway code, one question per project, excluded from the
-build.
-
-```
-dotnet run --project probes/EndpointChannels
-```
-
 ## License
 
 MIT
